@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Moon, Clock, Brain, Activity, Thermometer } from 'lucide-react';
 import { PSQIResult } from '../types';
 import { cn } from '../lib/utils';
+import { calculateSleepDurationMinutes } from '../lib/sleep';
 
 interface PSQIFormProps {
   onClose: () => void;
@@ -115,6 +116,8 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
   };
 
   const calculatePSQIScore = () => {
+    const disturbanceValues = Object.values(disturbanceResponses) as number[];
+
     // 计算各组成部分得分
     const componentScores = {
       quality: responses.quality || 0,
@@ -122,7 +125,7 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
       duration: responses.duration || 0,
       efficiency: responses.efficiency || 0,
       // 睡眠紊乱得分为各子问题最高分
-      disturbances: Math.max(...Object.values(disturbanceResponses), 0),
+      disturbances: disturbanceValues.length > 0 ? Math.max(...disturbanceValues) : 0,
       medication: responses.medication || 0,
       dysfunction: responses.dysfunction || 0
     };
@@ -149,7 +152,12 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
         fallAsleepTime,
         wakeTime,
         getUpTime,
-        actualSleepHours: 0 // 可根据时间计算
+        actualSleepHours: Math.round((calculateSleepDurationMinutes({
+          date: new Date().toISOString().split('T')[0],
+          fallAsleepTime,
+          wakeTime,
+          wakeDuration: 0,
+        }) / 60) * 10) / 10
       }
     };
 

@@ -1,5 +1,10 @@
-import { UserData, SleepLog, DBASResult, PSQIResult, CBTTask } from '../types';
-import { format, parseISO, differenceInMinutes, subDays } from 'date-fns';
+import { UserData, SleepLog, CBTTask } from '../types';
+import { format } from 'date-fns';
+import {
+  calculateSleepDurationMinutes,
+  calculateSleepLatencyMinutes,
+  calculateTimeInBedMinutes,
+} from '../lib/sleep';
 
 // 分析引擎核心类
 export class SleepAnalysisEngine {
@@ -230,16 +235,11 @@ export class SleepAnalysisEngine {
 
   // 私有辅助方法
   private calculateSleepLatency(log: SleepLog): number {
-    const bedTime = parseISO(`${log.date}T${log.bedTime}`);
-    const fallAsleepTime = parseISO(`${log.date}T${log.fallAsleepTime}`);
-    return Math.max(0, differenceInMinutes(fallAsleepTime, bedTime));
+    return calculateSleepLatencyMinutes(log);
   }
 
   private calculateTotalSleep(log: SleepLog): number {
-    const fallAsleepTime = parseISO(`${log.date}T${log.fallAsleepTime}`);
-    const wakeTime = parseISO(`${log.date}T${log.wakeTime}`);
-    const totalAsleep = differenceInMinutes(wakeTime, fallAsleepTime);
-    return Math.max(0, totalAsleep - (log.wakeDuration || 0));
+    return calculateSleepDurationMinutes(log);
   }
 
   private calculateTrend(values: number[]): 'improving' | 'stable' | 'declining' {
@@ -264,10 +264,7 @@ export class SleepAnalysisEngine {
     if (logs.length === 0) return 7.5;
 
     const latestLog = logs[logs.length - 1];
-    const bedTime = parseISO(`${latestLog.date}T${latestLog.bedTime}`);
-    const getUpTime = parseISO(`${latestLog.date}T${latestLog.getUpTime}`);
-
-    const totalInBed = differenceInMinutes(getUpTime, bedTime) / 60;
+    const totalInBed = calculateTimeInBedMinutes(latestLog) / 60;
     const recommendedWindow = Math.max(5, Math.min(totalInBed * 0.9, 8));
 
     return Math.round(recommendedWindow * 10) / 10;

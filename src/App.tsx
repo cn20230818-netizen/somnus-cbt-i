@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { 
   Moon, 
   Sun, 
@@ -26,15 +26,28 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { format, subDays, parseISO, differenceInMinutes } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
+import {
+  calculateSleepDurationMinutes,
+  calculateSleepEfficiency,
+  formatHoursFromMinutes,
+} from './lib/sleep';
 import { UserData, SleepLog, CBTTask, DBASResult, PSQIResult } from './types';
-import { generateCBTTasks } from './services/geminiService';
-import { DBASForm } from './components/DBASForm';
-import { PSQIForm } from './components/PSQIForm';
-import { SleepHygiene } from './components/SleepHygiene';
-import { ProgressTracking } from './components/ProgressTracking';
+
+const SleepHygienePanel = lazy(() =>
+  import('./components/SleepHygiene').then((module) => ({ default: module.SleepHygiene })),
+);
+const ProgressTrackingPanel = lazy(() =>
+  import('./components/ProgressTracking').then((module) => ({ default: module.ProgressTracking })),
+);
+const DBASFormModal = lazy(() =>
+  import('./components/DBASForm').then((module) => ({ default: module.DBASForm })),
+);
+const PSQIFormModal = lazy(() =>
+  import('./components/PSQIForm').then((module) => ({ default: module.PSQIForm })),
+);
 
 // Mock Initial Data
 const INITIAL_DATA: UserData = {
@@ -112,28 +125,92 @@ const INITIAL_DATA: UserData = {
   }
 };
 
+function getInitialUserData(): UserData {
+  if (typeof window === 'undefined') {
+    return INITIAL_DATA;
+  }
+
+  try {
+    const saved = window.localStorage.getItem('somnus_data');
+    if (!saved) {
+      return INITIAL_DATA;
+    }
+
+    const parsed = JSON.parse(saved) as Partial<UserData>;
+
+    return {
+      ...INITIAL_DATA,
+      ...parsed,
+      sleepLogs: Array.isArray(parsed.sleepLogs) ? parsed.sleepLogs : INITIAL_DATA.sleepLogs,
+      dbasResults: Array.isArray(parsed.dbasResults) ? parsed.dbasResults : INITIAL_DATA.dbasResults,
+      psqiResults: Array.isArray(parsed.psqiResults) ? parsed.psqiResults : INITIAL_DATA.psqiResults,
+      physiologicalData: Array.isArray(parsed.physiologicalData)
+        ? parsed.physiologicalData
+        : INITIAL_DATA.physiologicalData,
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : INITIAL_DATA.tasks,
+      treatmentPhase: {
+        ...INITIAL_DATA.treatmentPhase,
+        ...parsed.treatmentPhase,
+      },
+      preferences: {
+        ...INITIAL_DATA.preferences,
+        ...parsed.preferences,
+      },
+    };
+  } catch (error) {
+    console.warn('Failed to restore saved Somnus data, falling back to defaults.', error);
+    return INITIAL_DATA;
+  }
+}
+
+function PanelLoadingState({ label }: { label: string }) {
+  return (
+    <div className="glass-card p-8 text-sm text-white/60">
+      {label}
+    </div>
+  );
+}
+
+function ModalLoadingState({ label }: { label: string }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[110] flex items-center justify-center p-6">
+      <div className="bg-[#151921] border border-white/10 w-full max-w-md rounded-[32px] p-8 text-sm text-white/60 shadow-2xl">
+        {label}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [userData, setUserData] = useState<UserData>(() => {
-    const saved = localStorage.getItem('somnus_data');
-    return saved ? JSON.parse(saved) : INITIAL_DATA;
-  });
+  const [userData, setUserData] = useState<UserData>(() => getInitialUserData());
   const [activeTab, setActiveTab] = useState<'dashboard' | 'logs' | 'assess' | 'tasks' | 'hygiene' | 'progress'>('dashboard');
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('somnus_data', JSON.stringify(userData));
+    try {
+      window.localStorage.setItem('somnus_data', JSON.stringify(userData));
+    } catch (error) {
+      console.warn('Failed to persist Somnus data locally.', error);
+    }
   }, [userData]);
 
   const handleAddTask = async () => {
     setIsGenerating(true);
-    const newTasks = await generateCBTTasks(userData);
-    if (newTasks.length > 0) {
-      setUserData(prev => ({
-        ...prev,
-        tasks: [...prev.tasks, ...newTasks]
-      }));
+    try {
+      const { generateCBTTasks } = await import('./services/geminiService');
+      const newTasks = await generateCBTTasks(userData);
+
+      if (newTasks.length > 0) {
+        setUserData(prev => ({
+          ...prev,
+          tasks: [...prev.tasks, ...newTasks]
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to generate CBT tasks:', error);
+    } finally {
+      setIsGenerating(false);
     }
-    setIsGenerating(false);
   };
 
   const toggleTask = (id: string, feedback?: { rating: number, note?: string }) => {
@@ -180,8 +257,16 @@ export default function App() {
             isGenerating={isGenerating} 
           />
         )}
-        {activeTab === 'hygiene' && <SleepHygiene />}
-        {activeTab === 'progress' && <ProgressTracking userData={userData} />}
+        {activeTab === 'hygiene' && (
+          <Suspense fallback={<PanelLoadingState label="正在加载睡眠卫生指南..." />}>
+            <SleepHygienePanel />
+          </Suspense>
+        )}
+        {activeTab === 'progress' && (
+          <Suspense fallback={<PanelLoadingState label="正在加载康复追踪模块..." />}>
+            <ProgressTrackingPanel userData={userData} />
+          </Suspense>
+        )}
       </main>
 
       {/* Navigation Rail */}
@@ -234,7 +319,7 @@ function Dashboard({ userData }: { userData: UserData }) {
         />
         <StatCard 
           title="昨晚睡眠时长" 
-          value={latestLog ? `${differenceInMinutes(parseISO(`${latestLog.date}T${latestLog.wakeTime}`), parseISO(`${latestLog.date}T${latestLog.fallAsleepTime}`)) / 60} 小时` : '--'}
+          value={latestLog ? `${formatHoursFromMinutes(calculateSleepDurationMinutes(latestLog))} 小时` : '--'}
           subtitle="较上周上升 12%"
           icon={<Moon className="text-accent-blue" size={18} />}
         />
@@ -333,16 +418,17 @@ function SleepLogs({ userData, setUserData }: { userData: UserData, setUserData:
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const start = parseISO(`${newLog.date}T${newLog.fallAsleepTime}`);
-    const end = parseISO(`${newLog.date}T${newLog.wakeTime}`);
-    const totalInBed = differenceInMinutes(parseISO(`${newLog.date}T${newLog.getUpTime}`), parseISO(`${newLog.date}T${newLog.bedTime}`));
-    const totalAsleep = differenceInMinutes(end, start) - (newLog.wakeDuration || 0);
-    const efficiency = Math.round((totalAsleep / totalInBed) * 100);
-
     const log: SleepLog = {
       ...newLog as SleepLog,
-      id: Math.random().toString(36).substr(2, 9),
-      efficiency
+      id: Math.random().toString(36).slice(2, 11),
+      efficiency: calculateSleepEfficiency({
+        date: newLog.date as string,
+        bedTime: newLog.bedTime as string,
+        fallAsleepTime: newLog.fallAsleepTime as string,
+        wakeTime: newLog.wakeTime as string,
+        getUpTime: newLog.getUpTime as string,
+        wakeDuration: newLog.wakeDuration || 0,
+      }),
     };
 
     setUserData(prev => ({
@@ -353,13 +439,10 @@ function SleepLogs({ userData, setUserData }: { userData: UserData, setUserData:
   };
 
   const chartData = userData.sleepLogs.map(log => {
-    const start = parseISO(`${log.date}T${log.fallAsleepTime}`);
-    const end = parseISO(`${log.date}T${log.wakeTime}`);
-    const totalAsleep = differenceInMinutes(end, start) - (log.wakeDuration || 0);
     return {
       date: format(parseISO(log.date), 'MM/dd'),
       efficiency: log.efficiency,
-      totalSleep: Math.round((totalAsleep / 60) * 10) / 10,
+      totalSleep: Math.round((calculateSleepDurationMinutes(log) / 60) * 10) / 10,
       wakeDuration: log.wakeDuration
     };
   });
@@ -678,8 +761,16 @@ function Assessments({ userData, setUserData }: { userData: UserData, setUserDat
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <h2 className="text-2xl font-semibold text-white">心理测评</h2>
 
-      {showDBAS && <DBASForm onClose={() => setShowDBAS(false)} onSave={handleSaveDBAS} />}
-      {showPSQI && <PSQIForm onClose={() => setShowPSQI(false)} onSave={handleSavePSQI} />}
+      {showDBAS && (
+        <Suspense fallback={<ModalLoadingState label="正在加载 DBAS 测评..." />}>
+          <DBASFormModal onClose={() => setShowDBAS(false)} onSave={handleSaveDBAS} />
+        </Suspense>
+      )}
+      {showPSQI && (
+        <Suspense fallback={<ModalLoadingState label="正在加载 PSQI 测评..." />}>
+          <PSQIFormModal onClose={() => setShowPSQI(false)} onSave={handleSavePSQI} />
+        </Suspense>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="glass-card p-8 space-y-4">

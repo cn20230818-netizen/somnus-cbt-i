@@ -4,15 +4,19 @@ import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
   const isProduction = mode === 'production';
+  const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+  const configuredBase = env.VITE_BASE_PATH?.trim();
+  const normalizedBase = configuredBase
+    ? `/${configuredBase.replace(/^\/+|\/+$/g, '')}/`
+    : repoName
+      ? `/${repoName}/`
+      : '/';
 
   return {
-    base: isProduction ? '/somnus-cbt-i/' : '/',
+    base: isProduction ? normalizedBase : '/',
     plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -28,10 +32,26 @@ export default defineConfig(({mode}) => {
       sourcemap: isProduction ? false : 'inline',
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'recharts'],
-            ui: ['lucide-react', 'motion'],
-            utils: ['date-fns', 'clsx']
+          manualChunks(id) {
+            if (id.includes('@google/genai')) {
+              return 'ai';
+            }
+
+            if (id.includes('recharts')) {
+              return 'charts';
+            }
+
+            if (id.includes('lucide-react') || id.includes('motion')) {
+              return 'ui';
+            }
+
+            if (id.includes('date-fns') || id.includes('clsx') || id.includes('tailwind-merge')) {
+              return 'utils';
+            }
+
+            if (id.includes('node_modules')) {
+              return 'vendor';
+            }
           }
         }
       }

@@ -1,9 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { UserData, CBTTask } from "../types";
 import { analysisService } from "./analysisEngine";
 import { physiologicalService } from "./physiologicalService";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
 
 export async function generateCBTTasks(userData: UserData): Promise<CBTTask[]> {
   try {
@@ -11,8 +10,8 @@ export async function generateCBTTasks(userData: UserData): Promise<CBTTask[]> {
     const recommendations = analysisService.generateRecommendations(userData);
 
     // 如果有推荐且Gemini API可用，使用AI增强
-    if (recommendations.length > 0 && process.env.GEMINI_API_KEY) {
-      return await generateAIEnhancedTasks(userData, recommendations);
+    if (recommendations.length > 0 && geminiApiKey) {
+      return await generateAIEnhancedTasks(userData, recommendations, geminiApiKey);
     }
 
     // 否则使用基于规则的任务生成
@@ -26,7 +25,13 @@ export async function generateCBTTasks(userData: UserData): Promise<CBTTask[]> {
 }
 
 // AI增强的任务生成
-async function generateAIEnhancedTasks(userData: UserData, recommendations: any[]): Promise<CBTTask[]> {
+async function generateAIEnhancedTasks(
+  userData: UserData,
+  recommendations: any[],
+  apiKey: string,
+): Promise<CBTTask[]> {
+  const { GoogleGenAI, Type } = await import('@google/genai');
+  const ai = new GoogleGenAI({ apiKey });
   const latestLog = userData.sleepLogs[userData.sleepLogs.length - 1];
   const latestDBAS = userData.dbasResults[userData.dbasResults.length - 1];
   const latestPSQI = userData.psqiResults[userData.psqiResults.length - 1];
@@ -100,7 +105,7 @@ async function generateAIEnhancedTasks(userData: UserData, recommendations: any[
     const tasks = JSON.parse(response.text || "[]");
     return tasks.map((t: any) => ({
       ...t,
-      id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      id: `ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       completed: false,
       date: new Date().toISOString().split('T')[0]
     }));
