@@ -46,18 +46,15 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        continue-on-error: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
-        if: success() || failure()
         with:
           path: './dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        if: success()
 
   # 质量检查工作流
   quality-check:
