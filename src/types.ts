@@ -10,6 +10,7 @@ export interface SleepLog {
   sleepQuality: number; // 1-5
   daytimeSleepiness: number; // 1-5
   efficiency: number; // percentage
+  note?: string;
 }
 
 export interface DBASResult {
@@ -42,7 +43,7 @@ export interface PSQIResult {
     wakeTime?: string;
     getUpTime?: string;
     actualSleepHours?: number;
-    // 其他PSQI问题响应
+    disturbances?: Record<string, number>;
   };
 }
 
@@ -77,9 +78,16 @@ export interface CBTTask {
   description: string;
   completed: boolean;
   date: string;
+  estimatedMinutes?: number;
+  rationale?: string;
+  source?: 'ai' | 'rules' | 'manual';
   feedback?: {
     rating: number; // 1-5
+    difficulty?: number; // 1-5
+    helpfulness?: number; // 1-5
+    willingness?: 'yes' | 'maybe' | 'no';
     note?: string;
+    completedAt?: string;
   };
 }
 
@@ -96,4 +104,11 @@ export interface UserData {
     language: 'zh' | 'en';
     dataSharing: boolean;
   };
+}
+
+export type DataMode = 'unset' | 'demo' | 'real';
+
+export interface AppState {
+  setupComplete: boolean;
+  dataMode: DataMode;
 }

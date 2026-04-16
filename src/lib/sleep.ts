@@ -5,6 +5,35 @@ function parseSleepDateTime(date: string, time: string) {
   return parseISO(`${date}T${time}`);
 }
 
+export function clockTimeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+export function minutesToClockTime(totalMinutes: number): string {
+  const normalized = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalized / 60);
+  const minutes = normalized % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+export function averageClockTime(times: string[], mode: 'night' | 'day' = 'day'): string | null {
+  if (times.length === 0) {
+    return null;
+  }
+
+  const values = times.map((time) => {
+    const minutes = clockTimeToMinutes(time);
+    if (mode === 'night' && minutes < 12 * 60) {
+      return minutes + 24 * 60;
+    }
+    return minutes;
+  });
+
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return minutesToClockTime(average);
+}
+
 export function minutesBetweenClockTimes(date: string, startTime: string, endTime: string): number {
   const start = parseSleepDateTime(date, startTime);
   let end = parseSleepDateTime(date, endTime);

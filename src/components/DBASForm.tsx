@@ -1,124 +1,353 @@
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Save, X } from 'lucide-react';
 import { DBASResult } from '../types';
 
 const QUESTIONS = [
-  "我需要睡够8小时，第二天才能感到清爽并保持良好的功能。",
-  "当自然睡眠不佳时，我需在第二天小睡或在接着的晚上睡更长时间来补觉。",
-  "我担心长期的失眠会对我的身体健康产生严重的后果。",
-  "我担心我会完全失去对睡眠能力的控制。",
-  "经过一晚糟糕的睡眠，我知道第二天我的日间功能将会下降。",
-  "为了在白天保持警觉并表现良好，我认为我应该在晚上使用药物帮助睡眠。",
-  "我担心因为晚上睡不好，我会失去正常享受生活的能力和活力。",
-  "当我在白天感到疲倦或表现不佳时，通常是因为前一天晚上没睡好。",
-  "我认为失眠本质上是大脑化学物质失衡的结果。",
-  "我觉得失眠正在破坏我享受生活的能力，阻止我做想做的事。",
-  "我无法处理由于一晚糟糕睡眠带来的负面后果。",
-  "我认为我应该能够自然入睡，不需要任何帮助或药物。",
-  "我认为我失眠的原因超出了我的控制范围。",
-  "我担心如果我晚上没睡好，第二天我会变得易怒且缺乏活力。",
-  "我认为如果我真的很累，我应该能在20分钟内入睡。",
-  "我担心我的失眠最终会导致精神崩溃。",
-  "我相信无论我做什么，我的睡眠问题都会持续下去。",
-  "我担心如果今今晚睡不好，明天我就完全无法正常工作。",
-  "我认为我的卧室环境是我睡眠问题的主要原因。",
-  "我认为我应该能够整晚安睡而不从中醒来。",
-  "我担心如果我的睡眠问题持续下去，我最终会得大病。",
-  "我相信如果我在床上待的时间更长，我最终会睡得更多。",
-  "我认为我的睡眠应该每天晚上都保持一致。",
-  "我担心我的失眠让我看起来更老或更没吸引力。",
-  "我认为白天的想法和担心是我睡眠问题的主要原因。",
-  "我认为我应该能像其他人一样轻松入睡。",
-  "我担心我的家人和朋友会注意到我有多累，并因此看不起我。",
-  "我相信如果我睡眠不足，我在工作或日常生活中会更容易犯错。",
-  "我担心我的失眠永远不会消失。",
-  "我认为我的睡眠问题是更严重的潜在疾病的征兆。"
+  '我需要睡够 8 小时，第二天才能感到清爽并保持良好的功能。',
+  '当自然睡眠不佳时，我需要在第二天小睡或在接着的晚上睡更长时间来补觉。',
+  '我担心长期失眠会对身体健康产生严重后果。',
+  '我担心自己会完全失去对睡眠能力的控制。',
+  '一晚睡不好后，我第二天的日间功能一定会明显下降。',
+  '为了白天保持警觉并表现良好，我认为我应该在晚上用药帮助睡眠。',
+  '我担心因为晚上睡不好，我会失去正常享受生活的能力和活力。',
+  '当我在白天感到疲倦或表现不佳时，通常是因为前一晚没睡好。',
+  '我认为失眠本质上是大脑化学物质失衡的结果。',
+  '我觉得失眠正在破坏我享受生活的能力，阻止我做想做的事。',
+  '我无法处理一晚糟糕睡眠带来的负面后果。',
+  '我认为我应该能够自然入睡，不需要任何帮助或药物。',
+  '我认为我失眠的原因超出了我的控制范围。',
+  '我担心如果我晚上没睡好，第二天会变得易怒且缺乏活力。',
+  '我认为如果我真的很累，就应该能在 20 分钟内入睡。',
+  '我担心我的失眠最终会导致精神崩溃。',
+  '我相信无论我做什么，我的睡眠问题都会持续下去。',
+  '我担心如果今晚睡不好，明天就完全无法正常工作。',
+  '我认为卧室环境是我睡眠问题的主要原因。',
+  '我认为自己应该能够整晚安睡而不从中醒来。',
+  '我担心如果睡眠问题持续下去，最终会得大病。',
+  '我相信如果我在床上待得更久，最终会睡得更多。',
+  '我认为我的睡眠应该每天晚上都保持一致。',
+  '我担心失眠让我看起来更老或更没吸引力。',
+  '我认为白天的想法和担心是我睡眠问题的主要原因。',
+  '我认为我应该能像其他人一样轻松入睡。',
+  '我担心家人和朋友会注意到我有多累，并因此看不起我。',
+  '我相信如果睡眠不足，我在工作或日常生活中会更容易犯错。',
+  '我担心我的失眠永远不会消失。',
+  '我认为我的睡眠问题是更严重潜在疾病的征兆。',
 ];
+
+const DRAFT_KEY = 'somnus_dbas_draft_v2';
+const PAGE_SIZE = 5;
 
 interface DBASFormProps {
   onClose: () => void;
   onSave: (result: DBASResult) => void;
 }
 
-export function DBASForm({ onClose, onSave }: DBASFormProps) {
-  const [responses, setResponses] = useState<Record<number, number>>({});
+function loadDraft() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const answeredCount = Object.keys(responses).length;
-    if (answeredCount < QUESTIONS.length) {
-      alert(`请回答所有问题 (已完成 ${answeredCount}/${QUESTIONS.length})`);
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as { page: number; responses: Record<number, number> }) : null;
+  } catch (error) {
+    console.warn('Failed to load DBAS draft.', error);
+    return null;
+  }
+}
+
+function saveDraft(page: number, responses: Record<number, number>) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ page, responses }));
+}
+
+function clearDraft() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.removeItem(DRAFT_KEY);
+}
+
+export function DBASForm({ onClose, onSave }: DBASFormProps) {
+  const draft = loadDraft();
+  const [page, setPage] = useState(draft?.page || 0);
+  const [responses, setResponses] = useState<Record<number, number>>(draft?.responses || {});
+  const [draftRestored] = useState(Boolean(draft));
+  const [submittedResult, setSubmittedResult] = useState<DBASResult | null>(null);
+
+  useEffect(() => {
+    saveDraft(page, responses);
+  }, [page, responses]);
+
+  const totalPages = Math.ceil(QUESTIONS.length / PAGE_SIZE);
+  const progress = Math.round((Object.keys(responses).length / QUESTIONS.length) * 100);
+
+  const pageQuestions = useMemo(() => {
+    const start = page * PAGE_SIZE;
+    return QUESTIONS.slice(start, start + PAGE_SIZE).map((question, offset) => ({
+      index: start + offset,
+      question,
+    }));
+  }, [page]);
+
+  const canGoNext = pageQuestions.every(({ index }) => responses[index]);
+  const isLastPage = page === totalPages - 1;
+
+  const handleSubmit = () => {
+    if (Object.keys(responses).length < QUESTIONS.length) {
       return;
     }
 
-    const values = Object.values(responses) as number[];
-    const total = values.reduce((a, b) => a + b, 0);
-    const avg = total / QUESTIONS.length;
-
-    // Subscale mapping for DBAS-30 (Approximate mapping to the 4 core dimensions defined in types.ts)
     const expectationsIdx = [0, 1, 14, 19, 21, 22, 25];
     const worryIdx = [2, 3, 6, 8, 9, 12, 15, 16, 20, 23, 24, 26, 28, 29];
     const consequencesIdx = [4, 7, 10, 13, 17, 27];
     const medicationIdx = [5, 11, 18];
 
-    const getSubAvg = (indices: number[]) => {
-      const scores = indices.map(i => responses[i] || 0) as number[];
-      return scores.reduce((a, b) => a + b, 0) / indices.length;
+    const getSubAverage = (indices: number[]) =>
+      indices.reduce((sum, index) => sum + (responses[index] || 0), 0) / indices.length;
+
+    const values = Object.values(responses) as number[];
+    const result: DBASResult = {
+      date: new Date().toISOString().split('T')[0],
+      totalScore: values.reduce((sum, value) => sum + value, 0) / QUESTIONS.length,
+      subScores: {
+        consequences: getSubAverage(consequencesIdx),
+        worry: getSubAverage(worryIdx),
+        expectations: getSubAverage(expectationsIdx),
+        medication: getSubAverage(medicationIdx),
+      },
+      responses,
     };
 
-    onSave({
-      date: new Date().toISOString().split('T')[0],
-      totalScore: avg,
-      subScores: {
-        expectations: getSubAvg(expectationsIdx),
-        worry: getSubAvg(worryIdx),
-        consequences: getSubAvg(consequencesIdx),
-        medication: getSubAvg(medicationIdx)
-      },
-      responses
-    });
+    clearDraft();
+    onSave(result);
+    setSubmittedResult(result);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[110] flex items-center justify-center p-6">
-      <div className="bg-[#151921] border border-white/10 w-full max-w-2xl rounded-[32px] p-8 space-y-6 max-h-[95vh] overflow-y-auto shadow-2xl">
-        <div className="flex justify-between items-center sticky top-0 bg-[#151921] pb-4 z-10 border-b border-white/5">
-          <div className="card-indicator text-2xl font-semibold text-white">DBAS-30 睡眠信念测评</div>
-          <button onClick={onClose} className="text-white/40 hover:text-white/60 transition-colors"><X /></button>
-        </div>
-        
-        <p className="text-white/40 text-sm italic">请根据您对以下陈述的认同程度打分（1-10分，1为完全不认同，10为完全认同）</p>
+  const highestDimension = submittedResult
+    ? (Object.entries(submittedResult.subScores) as Array<[keyof DBASResult['subScores'], number]>).reduce((highest, current) =>
+        current[1] > highest[1] ? current : highest,
+      )
+    : null;
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {QUESTIONS.map((q, i) => (
-            <div key={i} className="space-y-3">
-              <p className="text-white/80 font-medium text-sm">{i + 1}. {q}</p>
-              <div className="flex justify-between gap-1">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setResponses(prev => ({ ...prev, [i]: val }))}
-                    className={`flex-1 h-10 rounded-lg text-xs font-bold transition-all ${
-                      responses[i] === val 
-                        ? "bg-accent-blue text-white shadow-[0_0_15px_rgba(77,123,255,0.4)]" 
-                        : "bg-white/5 text-white/40 hover:bg-white/10"
-                    }`}
-                  >
-                    {val}
-                  </button>
-                ))}
+  const dimensionLabel =
+    highestDimension?.[0] === 'consequences'
+      ? '睡眠后果担忧'
+      : highestDimension?.[0] === 'worry'
+        ? '入睡相关担忧'
+        : highestDimension?.[0] === 'expectations'
+          ? '睡眠预期'
+          : '药物依赖倾向';
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-slate-950/80 backdrop-blur-xl p-4 sm:p-6">
+      <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[rgba(11,18,31,0.92)] shadow-[0_24px_80px_rgba(3,8,18,0.45)]">
+        <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 py-5 sm:px-8">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-sky-200">陕西省中医医院脑病科｜DBAS 睡眠信念评估</p>
+            <h2 className="text-2xl font-semibold text-white">用于了解患者对睡眠的非理性信念与担忧模式，为认知重建提供参考。</h2>
+            <p className="text-sm text-white/60">
+              请根据最近一段时间的真实想法作答。系统会自动保存当前进度。
+            </p>
+            {draftRestored && !submittedResult && (
+              <p className="inline-flex items-center gap-2 rounded-full bg-white/8 px-3 py-1 text-xs text-white/70">
+                <Save size={12} />
+                已恢复上次未完成的评估进度
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full border border-white/12 bg-white/6 p-3 text-white/70 transition hover:bg-white/10 hover:text-white"
+            aria-label="关闭 DBAS 评估"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {submittedResult ? (
+          <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+            <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="rounded-[28px] border border-sky-300/20 bg-gradient-to-br from-sky-500/18 via-slate-900/80 to-violet-400/10 p-6">
+                <p className="text-sm text-sky-100/90">评估已完成</p>
+                <h3 className="mt-2 text-4xl font-semibold text-white">{submittedResult.totalScore.toFixed(1)}</h3>
+                <p className="mt-2 text-sm leading-7 text-white/72">
+                  这是一项用于辅助理解睡眠信念模式的量表结果，并不等同于自动诊断。当前更值得优先关注的是
+                  <span className="font-semibold text-white"> {dimensionLabel}</span>。
+                </p>
+              </div>
+
+              <div className="rounded-[28px] border border-white/10 bg-white/6 p-6">
+                <p className="text-sm font-semibold text-white">四个维度分布</p>
+                <div className="mt-5 space-y-4">
+                  {(Object.entries(submittedResult.subScores) as Array<[keyof DBASResult['subScores'], number]>).map(([key, value]) => {
+                    const label =
+                      key === 'consequences'
+                        ? '睡眠后果担忧'
+                        : key === 'worry'
+                          ? '入睡相关担忧'
+                          : key === 'expectations'
+                            ? '睡眠预期'
+                            : '药物依赖倾向';
+                    return (
+                      <div key={key} className="space-y-2">
+                        <div className="flex items-center justify-between text-sm text-white/78">
+                          <span>{label}</span>
+                          <span>{value.toFixed(1)}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white/8">
+                          <div
+                            className="h-2 rounded-full bg-gradient-to-r from-sky-400 to-violet-300"
+                            style={{ width: `${Math.min(100, value * 10)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          ))}
 
-          <button 
-            type="submit" 
-            className="w-full p-4 rounded-2xl bg-accent-blue text-white font-bold uppercase tracking-widest shadow-lg hover:shadow-accent-blue/20 transition-all"
-          >
-            提交测评
-          </button>
-        </form>
+            <div className="mt-6 rounded-[28px] border border-white/10 bg-white/6 p-6">
+              <p className="text-sm font-semibold text-white">辅助解释</p>
+              <p className="mt-3 text-sm leading-7 text-white/72">
+                如果某一维度分数更高，往往意味着睡前更容易出现对应的高压想法。例如，当“睡眠后果担忧”偏高时，
+                很多人会更容易出现“今晚睡不好，明天就会完全失控”的自动化想法，而这类想法本身会继续增加入睡压力。
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+            <div className="mb-6 space-y-3">
+              <div className="flex items-center justify-between text-sm text-white/68">
+                <span>进度 {progress}%</span>
+                <span>
+                  第 {page + 1} / {totalPages} 页
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-white/8">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-sky-400 to-violet-300 transition-all"
+                  style={{ width: `${((page + 1) / totalPages) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {pageQuestions.map(({ index, question }) => (
+                <div key={index} className="rounded-[28px] border border-white/10 bg-white/6 p-5">
+                  <p className="text-sm leading-7 text-white/90">
+                    {index + 1}. {question}
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between text-xs text-white/48">
+                      <span>1 完全不认同</span>
+                      <span>10 非常认同</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={responses[index] || 5}
+                      onChange={(event) =>
+                        setResponses((current) => ({
+                          ...current,
+                          [index]: Number(event.target.value),
+                        }))
+                      }
+                      className="w-full accent-sky-300"
+                    />
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-2">
+                        {[1, 3, 5, 7, 10].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() =>
+                              setResponses((current) => ({
+                                ...current,
+                                [index]: value,
+                              }))
+                            }
+                            className={`rounded-full px-3 py-1.5 text-sm transition ${
+                              responses[index] === value
+                                ? 'bg-sky-300 text-slate-950'
+                                : 'bg-white/8 text-white/74 hover:bg-white/12'
+                            }`}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="rounded-full bg-white/8 px-3 py-1.5 text-sm text-white/82">
+                        当前评分 {responses[index] || 5}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="border-t border-white/8 px-5 py-4 sm:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-white/54">
+              {submittedResult
+                ? '本次评估结果已保存，可返回查看对应治疗计划。'
+                : '每页建议按当前真实感受作答，系统会自动保存当前进度。'}
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              {submittedResult ? (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
+                >
+                  完成并返回
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => Math.max(0, current - 1))}
+                    disabled={page === 0}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/12 px-4 py-3 text-sm text-white/76 transition disabled:opacity-35"
+                  >
+                    <ChevronLeft size={16} />
+                    上一页
+                  </button>
+                  {isLastPage ? (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={!canGoNext}
+                      className="rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
+                    >
+                      提交评估
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+                      disabled={!canGoNext}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
+                    >
+                      下一页
+                      <ChevronRight size={16} />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

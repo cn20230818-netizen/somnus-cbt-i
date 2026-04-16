@@ -1,92 +1,144 @@
-import { UserData, CBTTask } from "../types";
-import { analysisService } from "./analysisEngine";
-import { physiologicalService } from "./physiologicalService";
+import { format } from 'date-fns';
+import { CBTTask, UserData } from '../types';
+import { analysisService } from './analysisEngine';
 
 const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
 
-export async function generateCBTTasks(userData: UserData): Promise<CBTTask[]> {
-  try {
-    // 使用分析引擎生成推荐
-    const recommendations = analysisService.generateRecommendations(userData);
+type Recommendation = ReturnType<typeof analysisService.generateRecommendations>[number];
 
-    // 如果有推荐且Gemini API可用，使用AI增强
-    if (recommendations.length > 0 && geminiApiKey) {
-      return await generateAIEnhancedTasks(userData, recommendations, geminiApiKey);
-    }
-
-    // 否则使用基于规则的任务生成
-    return generateRuleBasedTasks(recommendations);
-  } catch (error) {
-    console.error("Error generating tasks:", error);
-    // 回退到基于规则的任务
-    const recommendations = analysisService.generateRecommendations(userData);
-    return generateRuleBasedTasks(recommendations);
-  }
+export interface TaskGenerationResult {
+  tasks: CBTTask[];
+  mode: 'ai' | 'rules';
+  message: string;
+  error?: string;
 }
 
-// AI增强的任务生成
+const TASK_DURATIONS: Record<CBTTask['type'], number> = {
+  cognitive: 15,
+  behavioral: 10,
+  relaxation: 12,
+  hygiene: 8,
+};
+
+function enrichTask(task: Partial<CBTTask>, fallback: Recommendation | undefined, index: number): CBTTask {
+  const type = (task.type || fallback?.category || 'hygiene') as CBTTask['type'];
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  return {
+    id: task.id || `${type}_${Date.now()}_${index}`,
+    type,
+    title: task.title || fallback?.title || '今日睡眠任务',
+    description:
+      task.description || fallback?.description || '继续记录睡眠，并完成今晚最重要的一项放松或节律任务。',
+    completed: false,
+    date: task.date || today,
+    estimatedMinutes: task.estimatedMinutes || TASK_DURATIONS[type],
+    rationale: task.rationale || fallback?.rationale || '基于当前睡眠记录与测评结果生成。',
+    source: task.source || 'rules',
+  };
+}
+
+function convertRecommendationsToTasks(recommendations: Recommendation[]): CBTTask[] {
+  const selected = recommendations.length > 0
+    ? recommendations
+        .sort((a, b) => {
+          const order = { high: 0, medium: 1, low: 2 };
+          return order[a.priority] - order[b.priority];
+        })
+        .slice(0, 3)
+    : [];
+
+  if (selected.length === 0) {
+    return [
+      {
+        id: `starter_hygiene_${Date.now()}`,
+        type: 'hygiene',
+        title: '先完成今晚记录准备',
+        description: '睡前先确定记录时间点，明早起床后及时补全睡眠日志。',
+        completed: false,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        estimatedMinutes: 8,
+        rationale: '当前数据仍较少，先建立连续记录习惯最重要。',
+        source: 'rules',
+      },
+      {
+        id: `starter_relax_${Date.now()}`,
+        type: 'relaxation',
+        title: '睡前做短时放松',
+        description: '睡前 10 分钟做缓慢呼吸或肌肉放松，帮助从白天状态过渡到睡眠状态。',
+        completed: false,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        estimatedMinutes: 10,
+        rationale: '在数据不足时，先从最容易执行的基础干预开始。',
+        source: 'rules',
+      },
+    ];
+  }
+
+  return selected.map((recommendation, index) =>
+    enrichTask(
+      {
+        id: `rule_${Date.now()}_${index}`,
+        type: recommendation.category,
+        title: recommendation.title,
+        description: recommendation.description,
+        estimatedMinutes: TASK_DURATIONS[recommendation.category],
+        rationale: recommendation.rationale,
+        source: 'rules',
+      },
+      recommendation,
+      index,
+    ),
+  );
+}
+
 async function generateAIEnhancedTasks(
   userData: UserData,
-  recommendations: any[],
+  recommendations: Recommendation[],
   apiKey: string,
-): Promise<CBTTask[]> {
+): Promise<TaskGenerationResult> {
   const { GoogleGenAI, Type } = await import('@google/genai');
   const ai = new GoogleGenAI({ apiKey });
   const latestLog = userData.sleepLogs[userData.sleepLogs.length - 1];
-  const latestDBAS = userData.dbasResults[userData.dbasResults.length - 1];
-  const latestPSQI = userData.psqiResults[userData.psqiResults.length - 1];
-
-  // 生成分析摘要
+  const latestDbas = userData.dbasResults[userData.dbasResults.length - 1];
+  const latestPsqi = userData.psqiResults[userData.psqiResults.length - 1];
   const analysis = analysisService.analyzeSleep(userData);
   const cognitiveAnalysis = analysisService.analyzeCognition(userData);
 
   const prompt = `
-    作为专业的睡眠治疗师，请根据以下患者数据生成3个个性化的CBT-I（失眠认知行为疗法）任务。
+你是一名协助 CBT-I 数字干预系统生成患者任务说明的睡眠治疗师。
+请根据以下患者信息，生成 3 条今天适合执行的 CBT-I 任务。
 
-    # 患者数据摘要
+要求：
+1. 所有内容使用简体中文。
+2. 风格温和、专业、可执行，不做诊断表述。
+3. 至少包含 1 条行为或节律任务。
+4. 如有需要，可包含 1 条认知任务和 1 条放松任务。
+5. 每条任务输出：
+   - type: cognitive | behavioral | relaxation | hygiene
+   - title: 18 字以内
+   - description: 40-90 字
+   - estimatedMinutes: 5-20 的整数
+   - rationale: 18-50 字，说明为什么推荐
 
-    ## 睡眠指标
-    - 最近睡眠效率: ${latestLog?.efficiency || '未知'}% (目标: 85%)
-    - 入睡潜伏期: ${analysis?.current?.latency || '未知'}分钟
-    - 夜间觉醒: ${latestLog?.wakeCount || 0}次，总清醒时间: ${latestLog?.wakeDuration || 0}分钟
-    - 主观睡眠质量: ${latestLog?.sleepQuality || '未知'}/5分
-
-    ## 认知评估
-    - DBAS总分: ${latestDBAS?.totalScore?.toFixed(1) || '未测评'} (0-10分，>4.5表示显著认知失调)
-    - 最高维度: ${cognitiveAnalysis?.dbas?.highestDimension || '未知'}
-    - PSQI总分: ${latestPSQI?.totalScore || '未测评'} (0-21分，≥5表示临床睡眠障碍)
-
-    ## 治疗阶段: ${userData.treatmentPhase?.phase || 'intensive'} 第${userData.treatmentPhase?.currentWeek || 1}周
-
-    # 生成要求
-    1. 生成3个任务，涵盖不同干预类型：认知、行为、放松、卫生
-    2. 至少包含1个放松训练任务
-    3. 任务需具体、可操作、个性化
-    4. 所有内容使用简体中文
-    5. 参考以下推荐但可调整：${recommendations.map(r => `${r.category}: ${r.title}`).join(', ')}
-
-    # 输出格式
-    返回JSON数组，每个任务包含：
-    - type: "cognitive", "behavioral", "relaxation", 或 "hygiene"
-    - title: 简短标题（20字内）
-    - description: 详细操作说明（50-100字）
-
-    # 示例
-    [
-      {
-        "type": "cognitive",
-        "title": "挑战睡眠后果信念",
-        "description": "针对'如果今晚睡不好，明天工作就完了'的想法，写出3个更合理的替代想法，例如：'即使睡不好，我也有能力应对白天的工作。'"
-      }
-    ]
-  `;
+患者摘要：
+- 最近睡眠效率：${latestLog?.efficiency || '未知'}%
+- 最近入睡潜伏期：${analysis?.current?.latency || '未知'} 分钟
+- 夜间觉醒次数：${latestLog?.wakeCount || 0}
+- 夜间总清醒时间：${latestLog?.wakeDuration || 0} 分钟
+- 主观睡眠质量：${latestLog?.sleepQuality || '未知'}/5
+- DBAS 总分：${latestDbas?.totalScore?.toFixed(1) || '未测评'}
+- DBAS 最高维度：${cognitiveAnalysis?.dbas?.highestDimension || '未知'}
+- PSQI 总分：${latestPsqi?.totalScore || '未测评'}
+- 当前系统推荐重点：${recommendations.map((item) => `${item.title}（${item.rationale}）`).join('；')}
+`;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.ARRAY,
           items: {
@@ -95,68 +147,81 @@ async function generateAIEnhancedTasks(
               type: { type: Type.STRING, enum: ['cognitive', 'behavioral', 'relaxation', 'hygiene'] },
               title: { type: Type.STRING },
               description: { type: Type.STRING },
+              estimatedMinutes: { type: Type.INTEGER },
+              rationale: { type: Type.STRING },
             },
-            required: ['type', 'title', 'description']
-          }
-        }
-      }
+            required: ['type', 'title', 'description', 'estimatedMinutes', 'rationale'],
+          },
+        },
+      },
     });
 
-    const tasks = JSON.parse(response.text || "[]");
-    return tasks.map((t: any) => ({
-      ...t,
-      id: `ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      completed: false,
-      date: new Date().toISOString().split('T')[0]
-    }));
+    const parsed = JSON.parse(response.text || '[]') as Array<Partial<CBTTask>>;
+    const tasks = parsed.slice(0, 3).map((task, index) => {
+      const enriched = enrichTask(task, recommendations[index], index);
+      return {
+        ...enriched,
+        source: 'ai' as const,
+      };
+    });
+
+    return {
+      tasks,
+      mode: 'ai',
+      message: '已结合 AI 生成今日任务说明。',
+    };
   } catch (error) {
-    console.error("AI task generation failed, falling back to rules:", error);
-    return generateRuleBasedTasks(recommendations);
+    console.error('AI task generation failed, falling back to rules:', error);
+    return {
+      tasks: convertRecommendationsToTasks(recommendations),
+      mode: 'rules',
+      message: 'AI 任务生成暂时不可用，已切换为本地规则推荐。',
+      error: error instanceof Error ? error.message : 'Unknown AI generation error',
+    };
   }
 }
 
-// 基于规则的任务生成（无AI回退）
-function generateRuleBasedTasks(recommendations: any[]): CBTTask[] {
-  if (recommendations.length === 0) {
-    // 默认任务
-    return [
-      {
-        id: `rule_${Date.now()}_1`,
-        type: 'hygiene' as const,
-        title: '记录睡眠日志',
-        description: '今晚记录上床时间、入睡时间、醒来时间、起床时间，以及夜间觉醒情况。',
-        completed: false,
-        date: new Date().toISOString().split('T')[0]
-      },
-      {
-        id: `rule_${Date.now()}_2`,
-        type: 'relaxation' as const,
-        title: '睡前深呼吸练习',
-        description: '睡前进行5分钟4-7-8呼吸法：吸气4秒，屏气7秒，呼气8秒，重复5次。',
-        completed: false,
-        date: new Date().toISOString().split('T')[0]
-      }
-    ];
-  }
+export async function generateTaskPlan(userData: UserData): Promise<TaskGenerationResult> {
+  try {
+    const recommendations = analysisService.generateRecommendations(userData);
 
-  // 将高优先级推荐转换为任务
-  return recommendations
-    .filter(rec => rec.priority === 'high')
-    .slice(0, 3)
-    .map((rec, index) => ({
-      id: `rule_${Date.now()}_${index}`,
-      type: rec.category,
-      title: rec.title,
-      description: rec.description,
-      completed: false,
-      date: new Date().toISOString().split('T')[0]
-    }));
+    if (recommendations.length === 0) {
+      return {
+        tasks: convertRecommendationsToTasks(recommendations),
+        mode: 'rules',
+        message: '当前数据仍在积累中，已生成基础任务建议。',
+      };
+    }
+
+    if (!geminiApiKey) {
+      return {
+        tasks: convertRecommendationsToTasks(recommendations),
+        mode: 'rules',
+        message: '当前未配置 AI 服务，已使用本地规则生成任务。',
+      };
+    }
+
+    return await generateAIEnhancedTasks(userData, recommendations, geminiApiKey);
+  } catch (error) {
+    console.error('Error generating task plan:', error);
+    return {
+      tasks: convertRecommendationsToTasks(analysisService.generateRecommendations(userData)),
+      mode: 'rules',
+      message: '任务生成过程中发生异常，已回退到本地规则推荐。',
+      error: error instanceof Error ? error.message : 'Unknown task generation error',
+    };
+  }
 }
 
-// 导出增强的服务
+export async function generateCBTTasks(userData: UserData): Promise<CBTTask[]> {
+  const result = await generateTaskPlan(userData);
+  return result.tasks;
+}
+
 export const enhancedTaskService = {
   generateTasks: generateCBTTasks,
+  generateTaskPlan,
   getRecommendations: (userData: UserData) => analysisService.generateRecommendations(userData),
   analyzeSleep: (userData: UserData) => analysisService.analyzeSleep(userData),
-  analyzeCognition: (userData: UserData) => analysisService.analyzeCognition(userData)
+  analyzeCognition: (userData: UserData) => analysisService.analyzeCognition(userData),
 };
