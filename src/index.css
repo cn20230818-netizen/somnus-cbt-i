@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'PingFang SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  
+  --color-bg-deep: #0B0E14;
+  --color-accent-blue: #4D7BFF;
+  --color-soft-purple: #9D7CFF;
+  --color-glass: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.12);
+}
+
+body {
+  @apply bg-bg-deep text-white font-sans antialiased;
+}
+
+.glass-card {
+  @apply bg-glass backdrop-blur-lg border border-glass-border rounded-[24px];
+}
+
+.ambient-glow {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(77, 123, 255, 0.15) 0%, transparent 70%);
+  top: -200px;
+  right: -100px;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.card-indicator {
+  @apply flex items-center gap-2;
+}
+
+.card-indicator::before {
+  content: '';
+  @apply w-1 h-4 bg-accent-blue rounded-full;
+}

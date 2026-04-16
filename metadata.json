@@ -1,0 +1,6 @@
+{
+  "name": "Somnus CBT-I",
+  "description": "A personalized, data-driven Cognitive Behavioral Therapy for Insomnia (CBT-I) system with automated task generation and sleep tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["sleep_hygiene"]
+}
