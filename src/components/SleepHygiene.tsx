@@ -71,7 +71,7 @@ export function SleepHygiene() {
           <h4 className="text-lg font-semibold text-white">黄金法则</h4>
         </div>
         <p className="text-white/70 text-sm leading-relaxed italic">
-          “床只用于睡眠和亲密关系。如果您在 20 分钟内无法入睡，请离开卧室，做一些放松的事情，直到感到困倦再回来。”
+          "床只用于睡眠和亲密关系。如果您在 20 分钟内无法入睡，请离开卧室，做一些放松的事情，直到感到困倦再回来。"
         </p>
       </div>
     </div>

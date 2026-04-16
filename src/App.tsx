@@ -92,7 +92,7 @@ const INITIAL_DATA: UserData = {
   ],
   tasks: [
     { id: 't1', type: 'behavioral', title: '睡眠限制', description: '今晚23:30前不要上床，即使感到困倦。', completed: false, date: '2024-04-15' },
-    { id: 't2', type: 'cognitive', title: '挑战信念', description: '写下”如果今晚睡不好，明天就完了”的替代想法。', completed: true, date: '2024-04-15' },
+    { id: 't2', type: 'cognitive', title: '挑战信念', description: '写下"如果今晚睡不好，明天就完了"的替代想法。', completed: true, date: '2024-04-15' },
   ],
   treatmentPhase: {
     phase: 'intensive',
@@ -241,7 +241,7 @@ function Dashboard({ userData }: { userData: UserData }) {
         <StatCard 
           title="认知失调程度" 
           value={userData.dbasResults[0]?.totalScore.toFixed(1) || '--'}
-          subtitle="需关注“睡眠预期”维度"
+          subtitle="需关注'睡眠预期'维度"
           icon={<Brain className="text-accent-blue" size={18} />}
         />
       </div>
@@ -675,39 +675,39 @@ function Assessments({ userData, setUserData }: { userData: UserData, setUserDat
   const psqiSeverity = latestPSQI ? getPSQISeverity(latestPSQI.totalScore) : null;
 
   return (
-    <div className=”space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700”>
-      <h2 className=”text-2xl font-semibold text-white”>心理测评</h2>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <h2 className="text-2xl font-semibold text-white">心理测评</h2>
 
       {showDBAS && <DBASForm onClose={() => setShowDBAS(false)} onSave={handleSaveDBAS} />}
       {showPSQI && <PSQIForm onClose={() => setShowPSQI(false)} onSave={handleSavePSQI} />}
 
-      <div className=”grid grid-cols-1 md:grid-cols-2 gap-6”>
-        <div className=”glass-card p-8 space-y-4”>
-          <div className=”flex justify-between items-start”>
-            <div className=”card-indicator text-lg font-semibold text-white”>DBAS-30</div>
-            <span className=”bg-white/10 text-white/60 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest”>睡眠信念</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="glass-card p-8 space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="card-indicator text-lg font-semibold text-white">DBAS-30</div>
+            <span className="bg-white/10 text-white/60 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">睡眠信念</span>
           </div>
-          <p className=”text-white/40 text-sm leading-relaxed”>评估您对睡眠的非理性信念和态度。这是认知重建的基础。</p>
-          <div className=”pt-4 flex justify-between items-end”>
+          <p className="text-white/40 text-sm leading-relaxed">评估您对睡眠的非理性信念和态度。这是认知重建的基础。</p>
+          <div className="pt-4 flex justify-between items-end">
             <div>
-              <p className=”text-[10px] uppercase font-bold text-white/40 tracking-widest”>最近得分</p>
-              <p className=”text-3xl font-light text-accent-blue”>{userData.dbasResults[0]?.totalScore.toFixed(1) || '未测评'}</p>
+              <p className="text-[10px] uppercase font-bold text-white/40 tracking-widest">最近得分</p>
+              <p className="text-3xl font-light text-accent-blue">{userData.dbasResults[0]?.totalScore.toFixed(1) || '未测评'}</p>
             </div>
-            <button onClick={() => setShowDBAS(true)} className=”bg-white text-black px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-white/90 transition-colors”>开始测评</button>
+            <button onClick={() => setShowDBAS(true)} className="bg-white text-black px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-white/90 transition-colors">开始测评</button>
           </div>
         </div>
 
-        <div className=”glass-card p-8 space-y-4”>
-          <div className=”flex justify-between items-start”>
-            <div className=”card-indicator text-lg font-semibold text-white”>PSQI</div>
-            <span className=”bg-white/10 text-white/60 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest”>睡眠质量</span>
+        <div className="glass-card p-8 space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="card-indicator text-lg font-semibold text-white">PSQI</div>
+            <span className="bg-white/10 text-white/60 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">睡眠质量</span>
           </div>
-          <p className=”text-white/40 text-sm leading-relaxed”>匹兹堡睡眠质量指数，用于评估过去一个月的睡眠质量。</p>
-          <div className=”pt-4 flex justify-between items-end”>
+          <p className="text-white/40 text-sm leading-relaxed">匹兹堡睡眠质量指数，用于评估过去一个月的睡眠质量。</p>
+          <div className="pt-4 flex justify-between items-end">
             <div>
-              <p className=”text-[10px] uppercase font-bold text-white/40 tracking-widest”>最近得分</p>
-              <div className=”flex items-baseline gap-2”>
-                <p className=”text-3xl font-light text-white”>{latestPSQI?.totalScore ?? '--'}</p>
+              <p className="text-[10px] uppercase font-bold text-white/40 tracking-widest">最近得分</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-3xl font-light text-white">{latestPSQI?.totalScore ?? '--'}</p>
                 {psqiSeverity && (
                   <span className={`text-xs font-bold ${psqiSeverity.color}`}>
                     {psqiSeverity.label}
@@ -715,34 +715,34 @@ function Assessments({ userData, setUserData }: { userData: UserData, setUserDat
                 )}
               </div>
             </div>
-            <button onClick={() => setShowPSQI(true)} className=”bg-white text-black px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-white/90 transition-colors”>开始测评</button>
+            <button onClick={() => setShowPSQI(true)} className="bg-white text-black px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-white/90 transition-colors">开始测评</button>
           </div>
         </div>
       </div>
 
-      <div className=”grid grid-cols-1 md:grid-cols-2 gap-6”>
-        <div className=”bg-white/5 p-8 rounded-[32px] border border-dashed border-white/10”>
-          <div className=”flex items-center gap-4 mb-4”>
-            <Brain className=”text-accent-blue” />
-            <h4 className=”text-lg font-semibold text-white”>认知分析</h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white/5 p-8 rounded-[32px] border border-dashed border-white/10">
+          <div className="flex items-center gap-4 mb-4">
+            <Brain className="text-accent-blue" />
+            <h4 className="text-lg font-semibold text-white">认知分析</h4>
           </div>
-          <p className=”text-white/60 text-sm leading-relaxed”>
+          <p className="text-white/60 text-sm leading-relaxed">
             {userData.dbasResults[0] ? (
-              `您的 DBAS 总分${userData.dbasResults[0].totalScore.toFixed(1)}分，在”${Object.entries(userData.dbasResults[0].subScores).reduce((a, b) => a[1] > b[1] ? a : b)[0]}”维度得分最高。这意味着您可能过度担心睡眠不足的影响。`
+              `您的 DBAS 总分${userData.dbasResults[0].totalScore.toFixed(1)}分，在"${Object.entries(userData.dbasResults[0].subScores).reduce((a, b) => a[1] > b[1] ? a : b)[0]}"维度得分最高。这意味着您可能过度担心睡眠不足的影响。`
             ) : (
               '完成DBAS测评后，系统将分析您的睡眠认知模式并提供个性化建议。'
             )}
           </p>
         </div>
 
-        <div className=”bg-white/5 p-8 rounded-[32px] border border-dashed border-white/10”>
-          <div className=”flex items-center gap-4 mb-4”>
-            <Moon className=”text-soft-purple” />
-            <h4 className=”text-lg font-semibold text-white”>睡眠质量分析</h4>
+        <div className="bg-white/5 p-8 rounded-[32px] border border-dashed border-white/10">
+          <div className="flex items-center gap-4 mb-4">
+            <Moon className="text-soft-purple" />
+            <h4 className="text-lg font-semibold text-white">睡眠质量分析</h4>
           </div>
-          <p className=”text-white/60 text-sm leading-relaxed”>
+          <p className="text-white/60 text-sm leading-relaxed">
             {latestPSQI ? (
-              `您的PSQI总分${latestPSQI.totalScore}分，表示${psqiSeverity?.label.toLowerCase()}。最需要改善的方面是”${Object.entries(latestPSQI.components).reduce((a, b) => a[1] > b[1] ? a : b)[0]}”。`
+              `您的PSQI总分${latestPSQI.totalScore}分，表示${psqiSeverity?.label.toLowerCase()}。最需要改善的方面是"${Object.entries(latestPSQI.components).reduce((a, b) => a[1] > b[1] ? a : b)[0]}"。`
             ) : (
               '完成PSQI测评后，系统将全面评估您过去一个月的睡眠质量并提供改善建议。'
             )}

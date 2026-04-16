@@ -80,11 +80,11 @@ jobs:
       - name: Build check
         run: npm run build -- --dry-run
 
-  # 包发布工作流（可选）
+  # 包发布工作流（可选）- 暂时禁用
   publish-package:
     needs: build-and-deploy
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: false # github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
