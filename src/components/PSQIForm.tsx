@@ -529,6 +529,27 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
                 </div>
               )}
             </div>
+
+            {step === steps.length - 1 && (
+              <div className="mt-5 rounded-[28px] border border-emerald-300/22 bg-emerald-300/10 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-100">最后一步</p>
+                    <p className="mt-2 text-sm leading-7 text-white/74">
+                      你现在已经到 PSQI 量表最后一步。确认当前步骤完成后，可以直接在这里提交整份评估。
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={!canContinue}
+                    className="rounded-full bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
+                  >
+                    提交整份 PSQI 评估
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

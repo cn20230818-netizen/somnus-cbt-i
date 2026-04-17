@@ -99,6 +99,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
   const totalPages = Math.ceil(QUESTIONS.length / PAGE_SIZE);
   const progress = Math.round((Object.keys(responses).length / QUESTIONS.length) * 100);
   const pageIndices = Array.from({ length: totalPages }, (_, index) => index);
+  const totalAnswered = Object.keys(responses).length;
 
   const pageQuestions = useMemo(() => {
     const start = page * PAGE_SIZE;
@@ -373,6 +374,28 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                 </div>
               ))}
             </div>
+
+            {isLastPage && (
+              <div className="mt-5 rounded-[28px] border border-emerald-300/22 bg-emerald-300/10 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-100">最后一页</p>
+                    <p className="mt-2 text-sm leading-7 text-white/74">
+                      你现在已经到 DBAS 量表的最后一页。完成全部 {QUESTIONS.length} 题后，可直接在这里提交整份评估。
+                    </p>
+                    <p className="mt-2 text-xs text-white/54">当前已完成 {totalAnswered} / {QUESTIONS.length} 题</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={totalAnswered < QUESTIONS.length}
+                    className="rounded-full bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
+                  >
+                    提交整份 DBAS 评估
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -419,7 +442,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      disabled={Object.keys(responses).length < QUESTIONS.length}
+                      disabled={totalAnswered < QUESTIONS.length}
                       className="rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
                     >
                       提交评估
