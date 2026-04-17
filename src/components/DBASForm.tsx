@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Save, X } from 'lucide-react';
 import { DBASResult } from '../types';
 
@@ -77,12 +77,24 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
   const draft = loadDraft();
   const [page, setPage] = useState(draft?.page || 0);
   const [responses, setResponses] = useState<Record<number, number>>(draft?.responses || {});
+  const [sliderValues, setSliderValues] = useState<Record<number, number>>(() => {
+    const initial: Record<number, number> = {};
+    QUESTIONS.forEach((_, index) => {
+      initial[index] = draft?.responses?.[index] ?? 5;
+    });
+    return initial;
+  });
   const [draftRestored] = useState(Boolean(draft));
   const [submittedResult, setSubmittedResult] = useState<DBASResult | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     saveDraft(page, responses);
   }, [page, responses]);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [page, submittedResult]);
 
   const totalPages = Math.ceil(QUESTIONS.length / PAGE_SIZE);
   const progress = Math.round((Object.keys(responses).length / QUESTIONS.length) * 100);
@@ -97,6 +109,17 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
 
   const canGoNext = pageQuestions.every(({ index }) => responses[index]);
   const isLastPage = page === totalPages - 1;
+
+  const setResponse = (index: number, value: number) => {
+    setSliderValues((current) => ({
+      ...current,
+      [index]: value,
+    }));
+    setResponses((current) => ({
+      ...current,
+      [index]: value,
+    }));
+  };
 
   const handleSubmit = () => {
     if (Object.keys(responses).length < QUESTIONS.length) {
@@ -222,7 +245,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+          <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
             <div className="mb-6 space-y-3">
               <div className="flex items-center justify-between text-sm text-white/68">
                 <span>进度 {progress}%</span>
@@ -236,14 +259,30 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                   style={{ width: `${((page + 1) / totalPages) * 100}%` }}
                 />
               </div>
+              {!canGoNext && (
+                <p className="text-sm leading-7 text-amber-100/72">
+                  本页仍有未作答条目。若你的感受接近中间值，也请点击一次“记为 5 分”或拖动滑杆确认。
+                </p>
+              )}
             </div>
 
             <div className="space-y-4">
               {pageQuestions.map(({ index, question }) => (
                 <div key={index} className="rounded-[28px] border border-white/10 bg-white/6 p-5">
-                  <p className="text-sm leading-7 text-white/90">
-                    {index + 1}. {question}
-                  </p>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <p className="text-sm leading-7 text-white/90">
+                      {index + 1}. {question}
+                    </p>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs ${
+                        responses[index] !== undefined
+                          ? 'bg-emerald-300/16 text-emerald-100'
+                          : 'bg-amber-300/12 text-amber-100/82'
+                      }`}
+                    >
+                      {responses[index] !== undefined ? '已作答' : '未作答'}
+                    </span>
+                  </div>
                   <div className="mt-4 space-y-3">
                     <div className="flex items-center justify-between text-xs text-white/48">
                       <span>1 完全不认同</span>
@@ -254,27 +293,19 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                       min={1}
                       max={10}
                       step={1}
-                      value={responses[index] || 5}
-                      onChange={(event) =>
-                        setResponses((current) => ({
-                          ...current,
-                          [index]: Number(event.target.value),
-                        }))
-                      }
+                      value={sliderValues[index] ?? 5}
+                      onChange={(event) => setResponse(index, Number(event.target.value))}
+                      onPointerUp={() => setResponse(index, sliderValues[index] ?? 5)}
+                      onKeyUp={() => setResponse(index, sliderValues[index] ?? 5)}
                       className="w-full accent-sky-300"
                     />
                     <div className="flex items-center justify-between">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {[1, 3, 5, 7, 10].map((value) => (
                           <button
                             key={value}
                             type="button"
-                            onClick={() =>
-                              setResponses((current) => ({
-                                ...current,
-                                [index]: value,
-                              }))
-                            }
+                            onClick={() => setResponse(index, value)}
                             className={`rounded-full px-3 py-1.5 text-sm transition ${
                               responses[index] === value
                                 ? 'bg-sky-300 text-slate-950'
@@ -284,9 +315,18 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                             {value}
                           </button>
                         ))}
+                        {responses[index] === undefined && (
+                          <button
+                            type="button"
+                            onClick={() => setResponse(index, 5)}
+                            className="rounded-full border border-white/12 bg-white/4 px-3 py-1.5 text-sm text-white/78 transition hover:bg-white/8"
+                          >
+                            记为 5 分
+                          </button>
+                        )}
                       </div>
                       <span className="rounded-full bg-white/8 px-3 py-1.5 text-sm text-white/82">
-                        当前评分 {responses[index] || 5}
+                        当前评分 {sliderValues[index] ?? 5}
                       </span>
                     </div>
                   </div>
@@ -301,7 +341,9 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
             <p className="text-sm text-white/54">
               {submittedResult
                 ? '本次评估结果已保存，可返回查看对应治疗计划。'
-                : '每页建议按当前真实感受作答，系统会自动保存当前进度。'}
+                : canGoNext
+                  ? '本页已完成，可继续下一页。系统会自动保存当前进度。'
+                  : '请先完成本页全部条目。系统会自动保存当前进度。'}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               {submittedResult ? (

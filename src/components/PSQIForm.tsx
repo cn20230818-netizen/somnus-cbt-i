@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock3, MoonStar, Save, X } from 'lucide-react';
 import { PSQIResult } from '../types';
 import { calculateSleepDurationMinutes, formatHoursFromMinutes } from '../lib/sleep';
@@ -153,6 +153,7 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
   const [getUpTime, setGetUpTime] = useState(draft?.getUpTime || '07:00');
   const [submittedResult, setSubmittedResult] = useState<PSQIResult | null>(null);
   const [draftRestored] = useState(Boolean(draft));
+  const bodyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     saveDraft({
@@ -165,6 +166,10 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
       getUpTime,
     });
   }, [step, responses, disturbanceResponses, bedTime, fallAsleepTime, wakeTime, getUpTime]);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step, submittedResult]);
 
   const steps = useMemo(
     () => [
@@ -227,6 +232,13 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
       : step === 5
         ? DISTURBANCES.every((item) => disturbanceResponses[item] !== undefined)
         : Boolean(currentStep.questionId && responses[currentStep.questionId] !== undefined);
+
+  const continueHint =
+    step === 0
+      ? '请先填写完整的典型作息时间。'
+      : step === 5
+        ? '请完成本页全部睡眠干扰条目后继续。'
+        : '请先选择一个最符合过去一个月情况的选项。';
 
   const severityLabel = (score: number) => {
     if (score < 5) {
@@ -363,7 +375,7 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+          <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
             <div className="mb-6 space-y-3">
               <div className="flex items-center justify-between text-sm text-white/68">
                 <span>进度 {progress}%</span>
@@ -377,6 +389,30 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
                   style={{ width: `${progress}%` }}
                 />
               </div>
+              <div className="flex flex-wrap gap-2">
+                {steps.map((item, index) => (
+                  <button
+                    key={`${item.title}-${index}`}
+                    type="button"
+                    onClick={() => {
+                      if (index <= step) {
+                        setStep(index);
+                      }
+                    }}
+                    className={`rounded-full px-3 py-1.5 text-xs transition ${
+                      index === step
+                        ? 'bg-sky-300 text-slate-950'
+                        : index < step
+                          ? 'bg-white/8 text-white/74 hover:bg-white/12'
+                          : 'bg-white/4 text-white/36'
+                    }`}
+                    disabled={index > step}
+                  >
+                    第 {index + 1} 步
+                  </button>
+                ))}
+              </div>
+              {!canContinue && <p className="text-sm leading-7 text-amber-100/72">{continueHint}</p>}
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/6 p-5">
@@ -483,7 +519,9 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
               <Clock3 size={16} />
               {submittedResult
                 ? '评估结果已保存，可回到“评估与我的”查看摘要。'
-                : '系统会自动保存当前进度，稍后可继续填写。'}
+                : canContinue
+                  ? '本步已完成，可继续下一步。系统会自动保存当前进度。'
+                  : continueHint}
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
               {submittedResult ? (
