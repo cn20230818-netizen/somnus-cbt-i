@@ -4,6 +4,7 @@ import { AppFooter } from './components/AppFooter';
 import { AppHeader } from './components/AppHeader';
 import { BottomNav, PrimaryTab } from './components/BottomNav';
 import { DBASForm } from './components/DBASForm';
+import { LegalCenter, LegalSection } from './components/LegalCenter';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { PSQIForm } from './components/PSQIForm';
 import { ToastItem, ToastViewport } from './components/ToastViewport';
@@ -45,6 +46,8 @@ export default function App() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [showDbas, setShowDbas] = useState(false);
   const [showPsqi, setShowPsqi] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
+  const [legalSection, setLegalSection] = useState<LegalSection>('permissions');
   const [taskGenerationMessage, setTaskGenerationMessage] = useState<ToastItem | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
@@ -245,10 +248,25 @@ export default function App() {
     pushToast('info', '已重新载入示例数据', '你可以继续浏览示例流程，或随时切换回真实记录。');
   };
 
+  const handleOpenLegal = (section: LegalSection) => {
+    setLegalSection(section);
+    setLegalOpen(true);
+  };
+
   if (!appState.setupComplete || appState.dataMode === 'unset') {
     return (
       <>
-        <OnboardingFlow onStartReal={handleStartReal} onStartDemo={handleStartDemo} />
+        <OnboardingFlow
+          onStartReal={handleStartReal}
+          onStartDemo={handleStartDemo}
+          onOpenLegal={handleOpenLegal}
+        />
+        <LegalCenter
+          activeSection={legalSection}
+          open={legalOpen}
+          onClose={() => setLegalOpen(false)}
+          onChangeSection={setLegalSection}
+        />
         <ToastViewport items={toasts} onDismiss={dismissToast} />
       </>
     );
@@ -305,7 +323,7 @@ export default function App() {
         )}
       </main>
 
-      <AppFooter />
+      <AppFooter onOpenLegal={handleOpenLegal} />
       <BottomNav
         activeTab={activeTab}
         onChange={(tab) => {
@@ -318,6 +336,12 @@ export default function App() {
 
       {showDbas && <DBASForm onClose={() => setShowDbas(false)} onSave={handleSaveDbas} />}
       {showPsqi && <PSQIForm onClose={() => setShowPsqi(false)} onSave={handleSavePsqi} />}
+      <LegalCenter
+        activeSection={legalSection}
+        open={legalOpen}
+        onClose={() => setLegalOpen(false)}
+        onChangeSection={setLegalSection}
+      />
       <ToastViewport items={toasts} onDismiss={dismissToast} />
     </div>
   );

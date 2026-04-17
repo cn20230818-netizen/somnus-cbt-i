@@ -1,11 +1,13 @@
+import { LegalSection } from './LegalCenter';
 import { ChevronRight, Hospital, MoonStar, Sparkles } from 'lucide-react';
 
 interface OnboardingFlowProps {
   onStartReal: () => void;
   onStartDemo: () => void;
+  onOpenLegal: (section: LegalSection) => void;
 }
 
-export function OnboardingFlow({ onStartReal, onStartDemo }: OnboardingFlowProps) {
+export function OnboardingFlow({ onStartReal, onStartDemo, onOpenLegal }: OnboardingFlowProps) {
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-6xl flex-col justify-between rounded-[36px] border border-white/10 bg-[linear-gradient(160deg,rgba(10,19,33,0.94),rgba(17,28,48,0.88))] p-6 shadow-[0_30px_120px_rgba(2,6,23,0.45)] sm:p-10">
@@ -58,6 +60,21 @@ export function OnboardingFlow({ onStartReal, onStartDemo }: OnboardingFlowProps
             <p className="text-xl font-semibold text-white">先从哪一种方式进入？</p>
             <p className="text-sm leading-7 text-white/65">
               如果你准备开始正式使用，请选择真实记录。如果只是想先浏览界面与流程，可以先查看示例数据。
+            </p>
+            <p className="text-sm leading-7 text-white/52">
+              继续使用即表示你已了解本系统的
+              <button onClick={() => onOpenLegal('permissions')} className="mx-1 text-sky-200 transition hover:text-sky-100">
+                使用权限
+              </button>
+              、
+              <button onClick={() => onOpenLegal('privacy')} className="mx-1 text-sky-200 transition hover:text-sky-100">
+                隐私声明
+              </button>
+              与
+              <button onClick={() => onOpenLegal('anti-theft')} className="ml-1 text-sky-200 transition hover:text-sky-100">
+                禁止盗用说明
+              </button>
+              。
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:items-end">
