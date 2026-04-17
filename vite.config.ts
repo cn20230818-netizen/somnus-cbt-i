@@ -1,3 +1,4 @@
+import fs from 'fs';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -7,12 +8,27 @@ export default defineConfig(({mode}) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const isProduction = mode === 'production';
   const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
-  const configuredBase = env.VITE_BASE_PATH?.trim();
-  const normalizedBase = configuredBase
-    ? `/${configuredBase.replace(/^\/+|\/+$/g, '')}/`
-    : repoName
-      ? `/${repoName}/`
-      : '/';
+  const configuredBase = process.env.VITE_BASE_PATH?.trim() || env.VITE_BASE_PATH?.trim();
+  const hasCustomDomain = fs.existsSync(path.resolve(__dirname, 'public/CNAME'));
+  const normalizedBase = (() => {
+    if (configuredBase === '/' || configuredBase === '.') {
+      return '/';
+    }
+
+    if (configuredBase) {
+      return `/${configuredBase.replace(/^\/+|\/+$/g, '')}/`;
+    }
+
+    if (hasCustomDomain) {
+      return '/';
+    }
+
+    if (repoName) {
+      return `/${repoName}/`;
+    }
+
+    return '/';
+  })();
 
   return {
     base: isProduction ? normalizedBase : '/',
