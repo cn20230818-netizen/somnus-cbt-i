@@ -180,13 +180,13 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
           : '药物依赖倾向';
 
   return (
-    <div className="fixed inset-0 z-[120] bg-slate-950/80 backdrop-blur-xl p-4 sm:p-6">
-      <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[rgba(11,18,31,0.92)] shadow-[0_24px_80px_rgba(3,8,18,0.45)]">
-        <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 py-5 sm:px-8">
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-sky-200">陕西省中医医院脑病科｜DBAS 睡眠信念评估</p>
-            <h2 className="text-2xl font-semibold text-white">用于了解患者对睡眠的非理性信念与担忧模式，为认知重建提供参考。</h2>
-            <p className="text-sm text-white/60">
+    <div className="fixed inset-0 z-[120] bg-slate-950/80 backdrop-blur-xl p-0 sm:p-6">
+      <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-none border-0 bg-[rgba(11,18,31,0.98)] shadow-[0_24px_80px_rgba(3,8,18,0.45)] sm:rounded-[32px] sm:border sm:border-white/10 sm:bg-[rgba(11,18,31,0.92)]">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-white/8 bg-[rgba(11,18,31,0.98)] px-4 py-4 sm:px-8 sm:py-5">
+          <div className="min-w-0 space-y-2">
+            <p className="text-xs font-semibold text-sky-200 sm:text-sm">陕西省中医医院脑病科｜DBAS 睡眠信念评估</p>
+            <h2 className="text-lg font-semibold leading-8 text-white sm:text-2xl">用于了解患者对睡眠的非理性信念与担忧模式，为认知重建提供参考。</h2>
+            <p className="text-xs text-white/60 sm:text-sm">
               请根据最近一段时间的真实想法作答。系统会自动保存当前进度。
             </p>
             {draftRestored && !submittedResult && (
@@ -198,15 +198,15 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
           </div>
           <button
             onClick={onClose}
-            className="rounded-full border border-white/12 bg-white/6 p-3 text-white/70 transition hover:bg-white/10 hover:text-white"
+            className="shrink-0 rounded-full border border-white/12 bg-white/6 p-2.5 text-white/70 transition hover:bg-white/10 hover:text-white sm:p-3"
             aria-label="关闭 DBAS 评估"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
         {submittedResult ? (
-          <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+          <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
             <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-[28px] border border-sky-300/20 bg-gradient-to-br from-sky-500/18 via-slate-900/80 to-violet-400/10 p-6">
                 <p className="text-sm text-sky-100/90">评估已完成</p>
@@ -257,7 +257,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
             </div>
           </div>
         ) : (
-          <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+          <div ref={bodyRef} className="flex-1 overflow-y-auto px-4 py-5 pb-36 sm:px-8 sm:py-6 sm:pb-6">
             <div className="mb-6 space-y-3">
               <div className="flex items-center justify-between text-sm text-white/68">
                 <span>进度 {progress}%</span>
@@ -271,7 +271,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                   style={{ width: `${((page + 1) / totalPages) * 100}%` }}
                 />
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {pageIndices.map((pageIndex) => {
                   const completed = isPageComplete(pageIndex);
                   const unlocked = pageIndex <= page || isPageComplete(pageIndex - 1);
@@ -285,7 +285,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                         }
                       }}
                       disabled={!unlocked}
-                      className={`rounded-full px-3 py-1.5 text-xs transition ${
+                      className={`shrink-0 rounded-full px-3 py-2 text-xs transition ${
                         pageIndex === page
                           ? 'bg-sky-300 text-slate-950'
                           : completed
@@ -309,9 +309,9 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
 
             <div className="space-y-4">
               {pageQuestions.map(({ index, question }) => (
-                <div key={index} className="rounded-[28px] border border-white/10 bg-white/6 p-5">
+                <div key={index} className="rounded-[24px] border border-white/10 bg-white/6 p-4 sm:rounded-[28px] sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <p className="text-sm leading-7 text-white/90">
+                    <p className="text-sm leading-7 text-white/90 sm:text-[15px]">
                       {index + 1}. {question}
                     </p>
                     <span
@@ -340,14 +340,14 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                       onKeyUp={() => setResponse(index, sliderValues[index] ?? 5)}
                       className="w-full accent-sky-300"
                     />
-                    <div className="flex items-center justify-between">
+                    <div className="space-y-3">
                       <div className="flex flex-wrap gap-2">
                         {[1, 3, 5, 7, 10].map((value) => (
                           <button
                             key={value}
                             type="button"
                             onClick={() => setResponse(index, value)}
-                            className={`rounded-full px-3 py-1.5 text-sm transition ${
+                            className={`min-h-11 rounded-full px-4 py-2 text-sm transition ${
                               responses[index] === value
                                 ? 'bg-sky-300 text-slate-950'
                                 : 'bg-white/8 text-white/74 hover:bg-white/12'
@@ -360,13 +360,13 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                           <button
                             type="button"
                             onClick={() => setResponse(index, 5)}
-                            className="rounded-full border border-white/12 bg-white/4 px-3 py-1.5 text-sm text-white/78 transition hover:bg-white/8"
+                            className="min-h-11 rounded-full border border-white/12 bg-white/4 px-4 py-2 text-sm text-white/78 transition hover:bg-white/8"
                           >
                             记为 5 分
                           </button>
                         )}
                       </div>
-                      <span className="rounded-full bg-white/8 px-3 py-1.5 text-sm text-white/82">
+                      <span className="inline-flex rounded-full bg-white/8 px-3 py-2 text-sm text-white/82">
                         当前评分 {sliderValues[index] ?? 5}
                       </span>
                     </div>
@@ -399,21 +399,21 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
           </div>
         )}
 
-        <div className="border-t border-white/8 px-5 py-4 sm:px-8">
+        <div className="sticky bottom-0 z-10 border-t border-white/8 bg-[rgba(11,18,31,0.98)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] sm:px-8 sm:py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-white/54">
+            <p className="text-xs leading-6 text-white/54 sm:text-sm">
               {submittedResult
                 ? '本次评估结果已保存，可返回查看对应治疗计划。'
                 : canGoNext
                   ? '本页已完成，可继续下一页。系统会自动保存当前进度。'
                   : '请先完成本页全部条目。系统会自动保存当前进度。'}
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-row">
               {submittedResult ? (
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
+                  className="col-span-2 rounded-full bg-sky-300 px-5 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-sky-200 sm:col-auto"
                 >
                   完成并返回
                 </button>
@@ -424,7 +424,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                       type="button"
                       onClick={handleSubmit}
                       disabled={Object.keys(responses).length < QUESTIONS.length}
-                      className="rounded-full border border-emerald-300/30 bg-emerald-300/16 px-5 py-3 text-sm font-semibold text-emerald-50 transition disabled:opacity-40"
+                      className="col-span-2 rounded-full border border-emerald-300/30 bg-emerald-300/16 px-5 py-3.5 text-sm font-semibold text-emerald-50 transition disabled:opacity-40 sm:col-auto"
                     >
                       最后一页，提交整份评估
                     </button>
@@ -433,7 +433,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                     type="button"
                     onClick={() => setPage((current) => Math.max(0, current - 1))}
                     disabled={page === 0}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/12 px-4 py-3 text-sm text-white/76 transition disabled:opacity-35"
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/12 px-4 py-3 text-sm text-white/76 transition disabled:opacity-35"
                   >
                     <ChevronLeft size={16} />
                     上一页
@@ -443,7 +443,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                       type="button"
                       onClick={handleSubmit}
                       disabled={totalAnswered < QUESTIONS.length}
-                      className="rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
+                      className="min-h-12 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
                     >
                       提交评估
                     </button>
@@ -452,7 +452,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                       type="button"
                       onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
                       disabled={!canGoNext}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
                     >
                       下一页
                       <ChevronRight size={16} />
