@@ -98,6 +98,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
 
   const totalPages = Math.ceil(QUESTIONS.length / PAGE_SIZE);
   const progress = Math.round((Object.keys(responses).length / QUESTIONS.length) * 100);
+  const pageIndices = Array.from({ length: totalPages }, (_, index) => index);
 
   const pageQuestions = useMemo(() => {
     const start = page * PAGE_SIZE;
@@ -109,6 +110,16 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
 
   const canGoNext = pageQuestions.every(({ index }) => responses[index]);
   const isLastPage = page === totalPages - 1;
+  const isPageComplete = (targetPage: number) => {
+    const start = targetPage * PAGE_SIZE;
+    const end = Math.min(start + PAGE_SIZE, QUESTIONS.length);
+    for (let index = start; index < end; index += 1) {
+      if (responses[index] === undefined) {
+        return false;
+      }
+    }
+    return true;
+  };
 
   const setResponse = (index: number, value: number) => {
     setSliderValues((current) => ({
@@ -259,6 +270,35 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                   style={{ width: `${((page + 1) / totalPages) * 100}%` }}
                 />
               </div>
+              <div className="flex flex-wrap gap-2">
+                {pageIndices.map((pageIndex) => {
+                  const completed = isPageComplete(pageIndex);
+                  const unlocked = pageIndex <= page || isPageComplete(pageIndex - 1);
+                  return (
+                    <button
+                      key={pageIndex}
+                      type="button"
+                      onClick={() => {
+                        if (unlocked) {
+                          setPage(pageIndex);
+                        }
+                      }}
+                      disabled={!unlocked}
+                      className={`rounded-full px-3 py-1.5 text-xs transition ${
+                        pageIndex === page
+                          ? 'bg-sky-300 text-slate-950'
+                          : completed
+                            ? 'bg-emerald-300/16 text-emerald-100 hover:bg-emerald-300/24'
+                            : unlocked
+                              ? 'bg-white/8 text-white/74 hover:bg-white/12'
+                              : 'bg-white/4 text-white/34'
+                      }`}
+                    >
+                      第 {pageIndex + 1} 页
+                    </button>
+                  );
+                })}
+              </div>
               {!canGoNext && (
                 <p className="text-sm leading-7 text-amber-100/72">
                   本页仍有未作答条目。若你的感受接近中间值，也请点击一次“记为 5 分”或拖动滑杆确认。
@@ -356,6 +396,16 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                 </button>
               ) : (
                 <>
+                  {isLastPage && (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={Object.keys(responses).length < QUESTIONS.length}
+                      className="rounded-full border border-emerald-300/30 bg-emerald-300/16 px-5 py-3 text-sm font-semibold text-emerald-50 transition disabled:opacity-40"
+                    >
+                      最后一页，提交整份评估
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setPage((current) => Math.max(0, current - 1))}
@@ -369,7 +419,7 @@ export function DBASForm({ onClose, onSave }: DBASFormProps) {
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      disabled={!canGoNext}
+                      disabled={Object.keys(responses).length < QUESTIONS.length}
                       className="rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
                     >
                       提交评估

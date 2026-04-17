@@ -216,6 +216,7 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
   );
 
   const currentStep = steps[step];
+  const stepIndices = Array.from({ length: steps.length }, (_, index) => index);
   const actualSleepHours = formatHoursFromMinutes(
     calculateSleepDurationMinutes({
       date: new Date().toISOString().split('T')[0],
@@ -239,6 +240,19 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
       : step === 5
         ? '请完成本页全部睡眠干扰条目后继续。'
         : '请先选择一个最符合过去一个月情况的选项。';
+
+  const isStepComplete = (targetStep: number) => {
+    if (targetStep === 0) {
+      return Boolean(bedTime && fallAsleepTime && wakeTime && getUpTime);
+    }
+
+    if (targetStep === 5) {
+      return DISTURBANCES.every((item) => disturbanceResponses[item] !== undefined);
+    }
+
+    const target = steps[targetStep];
+    return Boolean(target.questionId && responses[target.questionId] !== undefined);
+  };
 
   const severityLabel = (score: number) => {
     if (score < 5) {
@@ -390,27 +404,32 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
                 />
               </div>
               <div className="flex flex-wrap gap-2">
-                {steps.map((item, index) => (
+                {stepIndices.map((index) => {
+                  const completed = isStepComplete(index);
+                  const unlocked = index <= step || isStepComplete(index - 1);
+                  return (
                   <button
-                    key={`${item.title}-${index}`}
+                    key={`${steps[index].title}-${index}`}
                     type="button"
                     onClick={() => {
-                      if (index <= step) {
+                      if (unlocked) {
                         setStep(index);
                       }
                     }}
                     className={`rounded-full px-3 py-1.5 text-xs transition ${
                       index === step
                         ? 'bg-sky-300 text-slate-950'
-                        : index < step
-                          ? 'bg-white/8 text-white/74 hover:bg-white/12'
-                          : 'bg-white/4 text-white/36'
+                        : completed
+                          ? 'bg-emerald-300/16 text-emerald-100 hover:bg-emerald-300/24'
+                          : unlocked
+                            ? 'bg-white/8 text-white/74 hover:bg-white/12'
+                            : 'bg-white/4 text-white/36'
                     }`}
-                    disabled={index > step}
+                    disabled={!unlocked}
                   >
                     第 {index + 1} 步
                   </button>
-                ))}
+                )})}
               </div>
               {!canContinue && <p className="text-sm leading-7 text-amber-100/72">{continueHint}</p>}
             </div>
@@ -534,6 +553,16 @@ export function PSQIForm({ onClose, onSave }: PSQIFormProps) {
                 </button>
               ) : (
                 <>
+                  {step === steps.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={!canContinue}
+                      className="rounded-full border border-emerald-300/30 bg-emerald-300/16 px-5 py-3 text-sm font-semibold text-emerald-50 transition disabled:opacity-40"
+                    >
+                      最后一步，提交整份评估
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setStep((current) => Math.max(0, current - 1))}
