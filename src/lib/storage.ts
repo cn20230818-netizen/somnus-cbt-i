@@ -8,6 +8,60 @@ function canUseStorage() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
+function mergeUserData(base: UserData, raw: unknown): UserData {
+  if (!raw || typeof raw !== 'object') {
+    return base;
+  }
+
+  const stored = raw as Partial<UserData>;
+
+  return {
+    ...base,
+    ...stored,
+    sleepLogs: Array.isArray(stored.sleepLogs) ? stored.sleepLogs : base.sleepLogs,
+    dbasResults: Array.isArray(stored.dbasResults) ? stored.dbasResults : base.dbasResults,
+    psqiResults: Array.isArray(stored.psqiResults) ? stored.psqiResults : base.psqiResults,
+    isiResults: Array.isArray(stored.isiResults) ? stored.isiResults : base.isiResults,
+    essResults: Array.isArray(stored.essResults) ? stored.essResults : base.essResults,
+    gad7Results: Array.isArray(stored.gad7Results) ? stored.gad7Results : base.gad7Results,
+    phq9Results: Array.isArray(stored.phq9Results) ? stored.phq9Results : base.phq9Results,
+    osaRiskResults: Array.isArray(stored.osaRiskResults) ? stored.osaRiskResults : base.osaRiskResults,
+    bipolarRiskResults: Array.isArray(stored.bipolarRiskResults) ? stored.bipolarRiskResults : base.bipolarRiskResults,
+    physiologicalData: Array.isArray(stored.physiologicalData) ? stored.physiologicalData : base.physiologicalData,
+    tasks: Array.isArray(stored.tasks) ? stored.tasks : base.tasks,
+    treatmentPhase: {
+      ...base.treatmentPhase,
+      ...(stored.treatmentPhase || {}),
+      goals: Array.isArray(stored.treatmentPhase?.goals)
+        ? stored.treatmentPhase.goals
+        : base.treatmentPhase.goals,
+    },
+    riskProfile: {
+      ...base.riskProfile,
+      ...(stored.riskProfile || {}),
+      psychiatricHistory: Array.isArray(stored.riskProfile?.psychiatricHistory)
+        ? stored.riskProfile.psychiatricHistory
+        : base.riskProfile.psychiatricHistory,
+      substanceHistory: Array.isArray(stored.riskProfile?.substanceHistory)
+        ? stored.riskProfile.substanceHistory
+        : base.riskProfile.substanceHistory,
+    },
+    adherenceProfile: {
+      ...base.adherenceProfile,
+      ...(stored.adherenceProfile || {}),
+      adherenceBarriers: Array.isArray(stored.adherenceProfile?.adherenceBarriers)
+        ? stored.adherenceProfile.adherenceBarriers
+        : base.adherenceProfile.adherenceBarriers,
+      homeworkCompletionRateByModule:
+        stored.adherenceProfile?.homeworkCompletionRateByModule || base.adherenceProfile.homeworkCompletionRateByModule,
+    },
+    preferences: {
+      ...base.preferences,
+      ...(stored.preferences || {}),
+    },
+  };
+}
+
 export function loadAppState(): AppState {
   if (!canUseStorage()) {
     return createInitialAppState();
@@ -38,20 +92,22 @@ export function saveAppState(appState: AppState) {
 }
 
 export function loadUserData(appState: AppState): UserData {
+  const fallback = appState.dataMode === 'demo' ? createDemoUserData() : createEmptyUserData();
+
   if (!canUseStorage()) {
-    return appState.dataMode === 'demo' ? createDemoUserData() : createEmptyUserData();
+    return fallback;
   }
 
   try {
     const raw = window.localStorage.getItem(USER_DATA_KEY);
     if (!raw) {
-      return appState.dataMode === 'demo' ? createDemoUserData() : createEmptyUserData();
+      return fallback;
     }
 
-    return JSON.parse(raw) as UserData;
+    return mergeUserData(fallback, JSON.parse(raw));
   } catch (error) {
     console.warn('Failed to load Somnus user data.', error);
-    return appState.dataMode === 'demo' ? createDemoUserData() : createEmptyUserData();
+    return fallback;
   }
 }
 

@@ -212,63 +212,37 @@ function buildIssueList(userData: UserData) {
 
 export function resolveTreatmentPhase(userData: UserData): TreatmentPhaseSummary {
   const logs = sortSleepLogs(userData.sleepLogs);
-  const latestDbas = getLatestDbas(userData);
-  const latestPsqi = getLatestPsqi(userData);
-  const recentLogs = logs.slice(-14);
-  const averageEfficiency = average(recentLogs.map((log) => log.efficiency)) || 0;
-  const completionRate = getTaskCompletionRate(userData) || 0;
+  const bundle = analysisService.buildAnalysisBundle(userData);
   const today = new Date();
   const anchorDate = logs[0]?.date || userData.treatmentPhase.startDate || format(today, 'yyyy-MM-dd');
   const week = Math.max(1, Math.floor(differenceInCalendarDays(today, parseISO(anchorDate)) / 7) + 1);
+  const stage = bundle.treatmentPlan.stage;
+  const phaseMap: Record<string, TreatmentPhase['phase']> = {
+    '失眠临床评估': 'assessment',
+    '个案概念化': 'assessment',
+    '阶段化治疗计划': 'intensive',
+    '逐周复盘与调参': 'consolidation',
+    '巩固与复发预防': 'maintenance',
+    '暂缓进入标准 CBT-I': 'assessment',
+  };
+  const phase = phaseMap[stage] || 'assessment';
+  const goals =
+    bundle.treatmentPlan.goals.length > 0
+      ? bundle.treatmentPlan.goals
+      : bundle.screening.redirectRecommendation
+        ? [bundle.screening.redirectRecommendation]
+        : ['继续记录睡眠与评估结果，等待更多数据后再细化治疗方案'];
 
-  let phase: TreatmentPhase['phase'] = 'assessment';
-  if (!hasSufficientSleepData(userData) || !latestDbas || !latestPsqi) {
-    phase = 'assessment';
-  } else if (
-    recentLogs.length >= 21 &&
-    averageEfficiency >= 88 &&
-    completionRate >= 70 &&
-    latestPsqi.totalScore < 5 &&
-    latestDbas.totalScore < 3
-  ) {
-    phase = 'maintenance';
-  } else if (recentLogs.length >= 14 && averageEfficiency >= 85 && completionRate >= 55) {
-    phase = 'consolidation';
-  } else {
-    phase = 'intensive';
-  }
-
-  const issues = buildIssueList(userData);
-  const goals = [
-    !hasAssessmentData(userData) ? '完成 PSQI 与 DBAS 评估，明确干预重点' : null,
-    averageEfficiency < 85 ? '将近 7 天睡眠效率逐步提升至 85% 以上' : null,
-    average(recentLogs.map((log) => calculateSleepLatencyMinutes(log)))! > 30
-      ? '把平均入睡潜伏期逐步控制在 30 分钟以内'
-      : null,
-    getHighestDbasDimension(latestDbas)?.score && getHighestDbasDimension(latestDbas)!.score >= 4
-      ? `降低${getHighestDbasDimension(latestDbas)!.label}`
-      : null,
-    getWorstPsqiComponents(latestPsqi, 1)[0]?.score && getWorstPsqiComponents(latestPsqi, 1)[0]!.score >= 2
-      ? `优先改善${getWorstPsqiComponents(latestPsqi, 1)[0]!.label}`
-      : null,
-    completionRate < 60 ? '提高任务执行稳定性，减少中断' : null,
-  ].filter(Boolean) as string[];
-
-  const summary =
-    phase === 'assessment'
-      ? '当前以建档和识别主要睡眠问题为主，先补齐记录与测评，再进入更明确的干预。'
-      : phase === 'intensive'
-        ? '当前以核心 CBT-I 干预为主，重点放在节律稳定、认知调整和任务执行。'
-        : phase === 'consolidation'
-          ? '近阶段数据正在接近目标，接下来重点是保持节律并减少反复。'
-          : '当前以维持稳定睡眠和复发预防为主，可逐步减少干预频率。';
+  const summary = !bundle.screening.eligibleForStandardCBTI
+    ? bundle.screening.redirectRecommendation || '当前以进一步评估和风险筛查为主。'
+    : `${bundle.weeklyReview.weekSummary} ${bundle.caseConceptualization.summaryText}`;
 
   return {
     phase,
-    label: PHASE_LABELS[phase],
+    label: stage,
     week,
-    goals: goals.slice(0, 3).length > 0 ? goals.slice(0, 3) : ['持续记录，观察睡眠变化并按计划执行任务'],
-    summary: issues[0] ? `${summary} 当前最需要关注的是：${issues[0]}` : summary,
+    goals: goals.slice(0, 3),
+    summary,
   };
 }
 
@@ -301,21 +275,26 @@ export function getHomeSummary(userData: UserData): HomeSummary | null {
     return null;
   }
 
+  const bundle = analysisService.buildAnalysisBundle(userData);
   const totalSleepMinutes = calculateSleepDurationMinutes(latestLog);
-  const weeklyTrend = getWeeklyTrendSummary(userData);
   const tonightWindow = getTonightWindow(userData);
 
-  let statusTitle = '睡眠仍在调整中';
-  let statusBody = '继续保持固定起床时间和稳定记录，系统会根据更多数据持续调整建议。';
+  let statusTitle = '本周仍在调整中';
+  let statusBody = bundle.weeklyReview.weekSummary;
 
-  if (latestLog.efficiency >= 85 && latestLog.sleepQuality >= 4) {
-    statusTitle = '昨晚睡眠较稳定';
-    statusBody = '睡眠效率已接近治疗目标，可继续维持当前节律和任务执行。';
-  } else if (latestLog.efficiency < 75 || latestLog.daytimeSleepiness >= 4) {
-    statusTitle = '昨晚恢复仍不足';
-    statusBody = '建议今天优先执行减压与节律相关任务，避免白天额外补觉拉长卧床时间。';
-  } else if (weeklyTrend.averageWakeAfterSleepOnset && weeklyTrend.averageWakeAfterSleepOnset > 30) {
-    statusBody = '最近夜间清醒时间仍偏长，今晚更适合把注意力放在刺激控制和睡前放松上。';
+  if (!bundle.screening.eligibleForStandardCBTI) {
+    statusTitle = '先完成进一步评估';
+    statusBody =
+      bundle.screening.redirectRecommendation || '当前先不要直接进入标准 CBT-I，请继续补充评估信息。';
+  } else if ((bundle.assessment.weeklyAverages.avgSE7d || 0) >= 85 && latestLog.sleepQuality >= 4) {
+    statusTitle = '恢复正在趋稳';
+    statusBody = '近 7 天睡眠效率已接近目标，本周重点转为巩固节律与复发预防。';
+  } else if ((bundle.assessment.weeklyAverages.avgWASO7d || 0) > 30) {
+    statusTitle = '夜间清醒仍偏长';
+    statusBody = '本周更适合把注意力放在刺激控制和固定起床时间上，先减少在床清醒。';
+  } else if ((bundle.assessment.weeklyAverages.avgSleepLatency7d || 0) > 30) {
+    statusTitle = '入睡阶段仍较吃力';
+    statusBody = '本周重点不是逼自己快睡着，而是降低睡前高唤醒并减少努力性入睡。';
   }
 
   return {
@@ -325,8 +304,8 @@ export function getHomeSummary(userData: UserData): HomeSummary | null {
     statusBody,
     tonightWindow,
     basis: hasAssessmentData(userData)
-      ? '基于近 7 天睡眠记录与最新测评结果生成'
-      : '基于近 7 天睡眠记录生成，完成测评后可获得更完整解释',
+      ? '基于近 7 天睡眠记录、最新量表与本周治疗计划生成'
+      : '基于当前睡眠记录生成，补齐量表后可获得更完整解释',
   };
 }
 
@@ -351,6 +330,7 @@ function describeTrend(values: number[]) {
 
 export function getWeeklyTrendSummary(userData: UserData): WeeklyTrendSummary {
   const recentLogs = getRecentSleepLogs(userData, 7);
+  const bundle = analysisService.buildAnalysisBundle(userData);
   if (recentLogs.length === 0) {
     return {
       chartData: [],
@@ -374,7 +354,9 @@ export function getWeeklyTrendSummary(userData: UserData): WeeklyTrendSummary {
         ? '最近的睡眠效率波动偏大，建议优先守住固定起床时间和任务执行节律。'
         : '最近一周的睡眠效率整体较平稳，接下来重点观察入睡和夜间清醒环节。';
 
-  if ((averageWakeAfterSleepOnset || 0) > 30) {
+  if (!bundle.screening.eligibleForStandardCBTI) {
+    explanation = bundle.screening.redirectRecommendation || '当前先补齐评估，再决定是否进入标准 CBT-I。';
+  } else if ((averageWakeAfterSleepOnset || 0) > 30) {
     explanation += ' 目前夜间清醒时间仍偏长，是下一步最值得优先处理的部分。';
   } else if ((averageLatency || 0) > 30) {
     explanation += ' 目前主要压力仍在入睡阶段，可继续减少睡前担忧和在床清醒时间。';
@@ -406,25 +388,24 @@ export function getTaskCompletionRate(userData: UserData) {
 }
 
 export function getPlanExplanation(userData: UserData) {
-  const latestDbas = getLatestDbas(userData);
-  const latestPsqi = getLatestPsqi(userData);
-  const averageLatency = average(getRecentSleepLogs(userData).map((log) => calculateSleepLatencyMinutes(log)));
-  const highestDbas = getHighestDbasDimension(latestDbas);
-  const worstPsqi = getWorstPsqiComponents(latestPsqi, 1)[0];
+  const bundle = analysisService.buildAnalysisBundle(userData);
 
-  if (highestDbas && highestDbas.score >= 4) {
-    return `你最近的主要问题仍是${highestDbas.label}偏高，因此本周优先进行认知重建与节律稳定任务。`;
+  if (!bundle.screening.eligibleForStandardCBTI) {
+    return bundle.screening.redirectRecommendation || '当前先补齐评估与风险筛查，再决定是否进入标准 CBT-I。';
   }
 
-  if ((averageLatency || 0) > 30) {
-    return '你最近仍需要较长时间才能入睡，因此本周重点是减少在床清醒时间并降低睡前唤醒。';
+  const primary = bundle.treatmentPlan.primaryModules.map((item) => item.title).join(' + ');
+  const firstTarget = bundle.caseConceptualization.currentPriorityTargets[0];
+
+  if (primary && firstTarget) {
+    return `本周先用 ${primary} 处理“${firstTarget}”，因为它仍是当前最主要的维持因素。`;
   }
 
-  if (worstPsqi && worstPsqi.score >= 2) {
-    return `最近最受影响的是${worstPsqi.label}，因此本周计划会更强调可执行的生活与睡眠调整。`;
+  if (primary) {
+    return `本周先把 ${primary} 执行稳定，再根据近 7 天平均睡眠效率决定下周是否调参。`;
   }
 
-  return '目前系统会以巩固节律、保持任务完成率和观察变化为主，帮助你逐步重建稳定睡眠。';
+  return bundle.caseConceptualization.summaryText;
 }
 
 export function getAssessmentSummaries(userData: UserData) {
@@ -645,6 +626,11 @@ export function getCurrentTasks(userData: UserData) {
     return todaysTasks;
   }
 
+  const generatedTasks = analysisService.generateTasks(userData);
+  if (generatedTasks.length > 0) {
+    return generatedTasks;
+  }
+
   return [...userData.tasks]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 6);
@@ -675,12 +661,15 @@ export function getEmptyStateMessage(userData: UserData) {
 }
 
 export function getTodayInsight(userData: UserData) {
-  const recommendations = analysisService.generateRecommendations(userData);
-  if (recommendations.length === 0) {
-    return '当前数据仍在积累中，今天先以稳定作息、完成记录和基础评估为主。';
+  const bundle = analysisService.buildAnalysisBundle(userData);
+  if (!bundle.screening.eligibleForStandardCBTI) {
+    return bundle.screening.redirectRecommendation || '当前先以补充评估和稳定基础问题为主。';
   }
 
-  return recommendations[0].rationale;
+  return (
+    bundle.treatmentPlan.primaryModules[0]?.rationale ||
+    '今天先把固定起床时间、连续记录和本周核心任务执行稳定。'
+  );
 }
 
 export function getAverageSleepDurationHours(userData: UserData) {

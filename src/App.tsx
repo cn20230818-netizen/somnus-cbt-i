@@ -139,17 +139,19 @@ export default function App() {
     const result = await generateTaskPlan(syncTreatmentPhase(userData));
     const today = format(new Date(), 'yyyy-MM-dd');
 
-    updateUserData((current) => ({
-      ...current,
-      tasks: [
-        ...current.tasks.filter((task) => task.date !== today || task.completed),
-        ...result.tasks.map((task, index) => ({
-          ...task,
-          id: `${task.source || result.mode}_${Date.now()}_${index}`,
-          date: today,
-        })),
-      ],
-    }));
+    if (result.tasks.length > 0) {
+      updateUserData((current) => ({
+        ...current,
+        tasks: [
+          ...current.tasks.filter((task) => task.date !== today || task.completed),
+          ...result.tasks.map((task, index) => ({
+            ...task,
+            id: `${task.source || result.mode}_${Date.now()}_${index}`,
+            date: today,
+          })),
+        ],
+      }));
+    }
 
     const message = {
       id: Date.now(),
@@ -176,25 +178,93 @@ export default function App() {
       note?: string;
     },
   ) => {
-    updateUserData((current) => ({
-      ...current,
-      tasks: current.tasks.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              completed: true,
-              feedback: {
-                rating: feedback.rating,
-                difficulty: feedback.difficulty,
-                helpfulness: feedback.helpfulness,
-                willingness: feedback.willingness,
-                note: feedback.note,
-                completedAt: new Date().toISOString(),
-              },
-            }
-          : task,
-      ),
-    }));
+    updateUserData((current) => {
+      let matchedModule: CBTTask['module'] | undefined;
+      let found = false;
+
+      const nextTasks = current.tasks.map((task) => {
+        if (task.id !== taskId) {
+          return task;
+        }
+
+        found = true;
+        matchedModule = task.module;
+
+        return {
+          ...task,
+          completed: true,
+          feedback: {
+            rating: feedback.rating,
+            difficulty: feedback.difficulty,
+            helpfulness: feedback.helpfulness,
+            willingness: feedback.willingness,
+            note: feedback.note,
+            completedAt: new Date().toISOString(),
+          },
+        };
+      });
+
+      if (!found) {
+        return current;
+      }
+
+      const moduleRates = nextTasks.reduce<Record<string, { total: number; completed: number }>>((accumulator, task) => {
+        if (!task.module) {
+          return accumulator;
+        }
+
+        const currentStat = accumulator[task.module] || { total: 0, completed: 0 };
+        currentStat.total += 1;
+        currentStat.completed += task.completed ? 1 : 0;
+        accumulator[task.module] = currentStat;
+        return accumulator;
+      }, {});
+
+      const homeworkCompletionRateByModule = Object.fromEntries(
+        Object.entries(moduleRates).map(([module, stats]) => [
+          module,
+          stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
+        ]),
+      );
+
+      const barriers = new Set(current.adherenceProfile.adherenceBarriers || []);
+      if (feedback.difficulty >= 4) {
+        barriers.add('任务体感较难');
+      }
+      if (feedback.helpfulness <= 2) {
+        barriers.add('当前任务帮助感偏低');
+      }
+      if (feedback.willingness === 'no') {
+        barriers.add('继续意愿下降');
+      }
+
+      const dropoutRisk =
+        feedback.willingness === 'no'
+          ? 'high'
+          : feedback.willingness === 'maybe' || feedback.difficulty >= 4
+            ? 'moderate'
+            : 'low';
+
+      return {
+        ...current,
+        tasks: nextTasks,
+        adherenceProfile: {
+          ...current.adherenceProfile,
+          taskDifficulty: feedback.difficulty,
+          perceivedHelpfulness: feedback.helpfulness,
+          willingnessToContinue: feedback.willingness,
+          adherenceBarriers: Array.from(barriers),
+          homeworkCompletionRateByModule: {
+            ...current.adherenceProfile.homeworkCompletionRateByModule,
+            ...homeworkCompletionRateByModule,
+            ...(matchedModule && homeworkCompletionRateByModule[matchedModule]
+              ? { [matchedModule]: homeworkCompletionRateByModule[matchedModule] }
+              : {}),
+          },
+          dropoutRisk,
+        },
+      };
+    });
     pushToast('success', '任务已完成', '系统已记录你的反馈，会在后续任务推荐中纳入参考。');
   };
 

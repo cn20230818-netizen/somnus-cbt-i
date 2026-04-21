@@ -53,21 +53,29 @@ cp .env.example .env.local
 - `VITE_BASE_PATH`
   用于部署到子路径，例如 GitHub Pages 的仓库页面。示例：`/somnus-cbt-i/`
 
-## GitHub Pages 部署
+## GitHub Pages 与自定义域名部署
 
 项目已经兼容标准 GitHub Pages 部署。
 
 1. 推送代码到 GitHub 仓库。
 2. 在仓库 `Settings -> Pages` 中把 `Source` 设置为 `GitHub Actions`。
 3. 运行仓库内的 Pages 工作流。
+4. 如果使用自定义域名，在 `public/CNAME` 中写入域名，并在 DNS 侧完成解析。
 
 构建时会优先使用：
 
 - `VITE_BASE_PATH`
 - 若未配置，则自动根据 `GITHUB_REPOSITORY` 推断 Pages 子路径
+- 如果检测到 `public/CNAME`，则自动使用根路径 `/`
 - 如果都没有，则回退到根路径 `/`
 
 这意味着仓库改名、fork，或迁移到新仓库时，不会因为写死路径而直接白屏。
+
+当前仓库已经为 `sxphcmsleep.com.cn` 准备好 `CNAME`。如果该域名要直接指向本仓库的 GitHub Pages，DNS 侧至少需要完成以下配置之一：
+
+- 根域名 `sxphcmsleep.com.cn`：配置 `A` 记录到 `185.199.108.153`、`185.199.109.153`、`185.199.110.153`、`185.199.111.153`
+- 若 DNS 服务商支持：为根域名配置 `ALIAS` 或 `ANAME` 指向 `cn20230818-netizen.github.io`
+- 如需 `www`：配置 `CNAME` 到 `cn20230818-netizen.github.io`
 
 ## 项目结构
 

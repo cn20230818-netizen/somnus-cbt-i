@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { createEmptyUserData } from '../src/data/demoData';
 import { UserData, SleepLog, DBASResult, PSQIResult, CBTTask } from '../src/types';
 
 const app = express();
@@ -151,24 +152,13 @@ app.get('/api/user/:userId/analysis', (req, res) => {
 
 // 辅助函数
 function createDefaultUserData(userId: string): UserData {
+  const base = createEmptyUserData();
   return {
-    sleepLogs: [],
-    dbasResults: [],
-    psqiResults: [],
-    physiologicalData: [],
-    tasks: [],
+    ...base,
     treatmentPhase: {
-      phase: 'assessment',
-      startDate: new Date().toISOString().split('T')[0],
-      currentWeek: 1,
-      goals: ['建立基线数据', '完成初始测评']
+      ...base.treatmentPhase,
+      goals: ['建立基线数据', '完成初始测评'],
     },
-    preferences: {
-      reminders: true,
-      notificationTime: '21:00',
-      language: 'zh',
-      dataSharing: false
-    }
   };
 }
 

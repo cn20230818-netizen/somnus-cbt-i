@@ -29,6 +29,17 @@ interface DraftLogState {
   getUpTime: string;
   wakeCount: number;
   wakeDuration: number;
+  napDuration: number;
+  caffeineIntake: number;
+  alcoholIntake: number;
+  eveningScreenExposure: number;
+  bedtimeEmotionArousal: number;
+  painOrSomaticSymptoms: number;
+  sleepMedicationUse: boolean;
+  nicotineUse: boolean;
+  preSleepThoughts: string;
+  lastHourActivities: string;
+  nocturnalEnvironmentIssues: string;
   sleepQuality: number;
   daytimeSleepiness: number;
   note: string;
@@ -43,10 +54,28 @@ function createDraftLog(): DraftLogState {
     getUpTime: '07:00',
     wakeCount: 0,
     wakeDuration: 0,
+    napDuration: 0,
+    caffeineIntake: 0,
+    alcoholIntake: 0,
+    eveningScreenExposure: 30,
+    bedtimeEmotionArousal: 3,
+    painOrSomaticSymptoms: 1,
+    sleepMedicationUse: false,
+    nicotineUse: false,
+    preSleepThoughts: '',
+    lastHourActivities: '',
+    nocturnalEnvironmentIssues: '',
     sleepQuality: 3,
     daytimeSleepiness: 3,
     note: '',
   };
+}
+
+function splitItems(value: string) {
+  return value
+    .split(/[\n,，、]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 export function SleepRecordsPage({
@@ -130,6 +159,17 @@ export function SleepRecordsPage({
       getUpTime: draftLog.getUpTime,
       wakeCount: draftLog.wakeCount,
       wakeDuration: draftLog.wakeDuration,
+      napDuration: draftLog.napDuration,
+      caffeineIntake: draftLog.caffeineIntake,
+      alcoholIntake: draftLog.alcoholIntake,
+      eveningScreenExposure: draftLog.eveningScreenExposure,
+      bedtimeEmotionArousal: draftLog.bedtimeEmotionArousal,
+      painOrSomaticSymptoms: draftLog.painOrSomaticSymptoms,
+      sleepMedicationUse: draftLog.sleepMedicationUse,
+      nicotineUse: draftLog.nicotineUse,
+      preSleepThoughts: splitItems(draftLog.preSleepThoughts),
+      lastHourActivities: splitItems(draftLog.lastHourActivities),
+      nocturnalEnvironmentIssues: splitItems(draftLog.nocturnalEnvironmentIssues),
       sleepQuality: draftLog.sleepQuality,
       daytimeSleepiness: draftLog.daytimeSleepiness,
       efficiency,
@@ -243,37 +283,101 @@ export function SleepRecordsPage({
               )}
 
               {step === 1 && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="space-y-2 text-sm text-white/76">
-                    <span>夜间醒来次数</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={draftLog.wakeCount}
-                      onChange={(event) =>
-                        setDraftLog((current) => ({
-                          ...current,
-                          wakeCount: Number(event.target.value),
-                        }))
-                      }
-                      className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
-                    />
-                  </label>
-                  <label className="space-y-2 text-sm text-white/76">
-                    <span>夜间总清醒时长（分钟）</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={draftLog.wakeDuration}
-                      onChange={(event) =>
-                        setDraftLog((current) => ({
-                          ...current,
-                          wakeDuration: Number(event.target.value),
-                        }))
-                      }
-                      className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
-                    />
-                  </label>
+                <div className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-2 text-sm text-white/76">
+                      <span>夜间醒来次数</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={draftLog.wakeCount}
+                        onChange={(event) =>
+                          setDraftLog((current) => ({
+                            ...current,
+                            wakeCount: Number(event.target.value),
+                          }))
+                        }
+                        className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm text-white/76">
+                      <span>夜间总清醒时长（分钟）</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={draftLog.wakeDuration}
+                        onChange={(event) =>
+                          setDraftLog((current) => ({
+                            ...current,
+                            wakeDuration: Number(event.target.value),
+                          }))
+                        }
+                        className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="rounded-[28px] border border-white/10 bg-white/4 p-5">
+                    <p className="text-sm font-semibold text-white">补充信息（可选）</p>
+                    <p className="mt-2 text-sm leading-7 text-white/60">
+                      这些信息有助于识别补觉、刺激物和睡前输入对失眠的维持作用。
+                    </p>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      {[
+                        { key: 'napDuration', label: '白天小睡（分钟）' },
+                        { key: 'caffeineIntake', label: '咖啡因摄入（杯）' },
+                        { key: 'alcoholIntake', label: '酒精摄入（杯）' },
+                        { key: 'eveningScreenExposure', label: '晚间屏幕暴露（分钟）' },
+                      ].map((field) => (
+                        <label key={field.key} className="space-y-2 text-sm text-white/76">
+                          <span>{field.label}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={draftLog[field.key as keyof DraftLogState] as number}
+                            onChange={(event) =>
+                              setDraftLog((current) => ({
+                                ...current,
+                                [field.key]: Number(event.target.value),
+                              }))
+                            }
+                            className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                          />
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <label className="flex items-center gap-3 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/76">
+                        <input
+                          type="checkbox"
+                          checked={draftLog.sleepMedicationUse}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              sleepMedicationUse: event.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-sky-300"
+                        />
+                        使用了助眠药物
+                      </label>
+                      <label className="flex items-center gap-3 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/76">
+                        <input
+                          type="checkbox"
+                          checked={draftLog.nicotineUse}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              nicotineUse: event.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-sky-300"
+                        />
+                        晚间使用了尼古丁
+                      </label>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -318,6 +422,97 @@ export function SleepRecordsPage({
                         ))}
                       </select>
                     </label>
+                  </div>
+                  <div className="rounded-[28px] border border-white/10 bg-white/4 p-5">
+                    <p className="text-sm font-semibold text-white">睡前体验与维持因素（可选）</p>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2 text-sm text-white/76">
+                        <span>睡前高唤醒程度（1-5）</span>
+                        <select
+                          value={draftLog.bedtimeEmotionArousal}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              bedtimeEmotionArousal: Number(event.target.value),
+                            }))
+                          }
+                          className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                        >
+                          {[1, 2, 3, 4, 5].map((value) => (
+                            <option key={value} value={value}>
+                              {value}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-2 text-sm text-white/76">
+                        <span>身体不适或疼痛（1-5）</span>
+                        <select
+                          value={draftLog.painOrSomaticSymptoms}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              painOrSomaticSymptoms: Number(event.target.value),
+                            }))
+                          }
+                          className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                        >
+                          {[1, 2, 3, 4, 5].map((value) => (
+                            <option key={value} value={value}>
+                              {value}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+
+                    <div className="mt-4 grid gap-4">
+                      <label className="space-y-2 text-sm text-white/76">
+                        <span>睡前主要想法（可用逗号或换行分隔）</span>
+                        <textarea
+                          value={draftLog.preSleepThoughts}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              preSleepThoughts: event.target.value,
+                            }))
+                          }
+                          rows={3}
+                          className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                          placeholder="例如：今晚必须睡着、明天会撑不住。"
+                        />
+                      </label>
+                      <label className="space-y-2 text-sm text-white/76">
+                        <span>睡前最后一小时做了什么（可选）</span>
+                        <textarea
+                          value={draftLog.lastHourActivities}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              lastHourActivities: event.target.value,
+                            }))
+                          }
+                          rows={3}
+                          className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                          placeholder="例如：刷手机、回复工作消息、看剧。"
+                        />
+                      </label>
+                      <label className="space-y-2 text-sm text-white/76">
+                        <span>夜间环境问题（可选）</span>
+                        <textarea
+                          value={draftLog.nocturnalEnvironmentIssues}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              nocturnalEnvironmentIssues: event.target.value,
+                            }))
+                          }
+                          rows={2}
+                          className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                          placeholder="例如：噪音、光线、温度。"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <label className="space-y-2 text-sm text-white/76">
                     <span>备注（可选）</span>
