@@ -15,6 +15,7 @@ import {
   getHomeSummary,
   getPlanExplanation,
   getTonightWindow,
+  getTodayInsight,
   getWeeklyTrendSummary,
   resolveTreatmentPhase,
 } from '../lib/insights';
@@ -24,6 +25,7 @@ interface HomePageProps {
   userData: UserData;
   onOpenSleepRecords: () => void;
   onOpenPlan: () => void;
+  onOpenAccount: () => void;
 }
 
 function SummaryMetric({ label, value }: { label: string; value: string }) {
@@ -35,12 +37,13 @@ function SummaryMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function HomePage({ userData, onOpenSleepRecords, onOpenPlan }: HomePageProps) {
+export function HomePage({ userData, onOpenSleepRecords, onOpenPlan, onOpenAccount }: HomePageProps) {
   const phase = resolveTreatmentPhase(userData);
   const homeSummary = getHomeSummary(userData);
   const trendSummary = getWeeklyTrendSummary(userData);
   const currentTasks = getCurrentTasks(userData).slice(0, 3);
   const planExplanation = getPlanExplanation(userData);
+  const todayInsight = getTodayInsight(userData);
   const emptyState = getEmptyStateMessage(userData);
   const tonightWindow = getTonightWindow(userData);
 
@@ -49,6 +52,9 @@ export function HomePage({ userData, onOpenSleepRecords, onOpenPlan }: HomePageP
       <div className="mx-auto max-w-7xl space-y-8 px-4 pt-8 sm:px-6">
         <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
           <div className="max-w-3xl space-y-4">
+            <div className="inline-flex rounded-full border border-sky-200/20 bg-sky-200/8 px-4 py-2 text-sm font-semibold text-sky-100">
+              陕西省中医医院脑病科
+            </div>
             <p className="text-sm font-medium text-sky-100">帮助患者更轻松地记录睡眠、理解问题、执行任务，并逐步重建稳定睡眠。</p>
             <h2 className="text-3xl font-semibold text-white">先从一晚真实睡眠记录开始</h2>
             <p className="text-base leading-8 text-white/68">
@@ -70,11 +76,11 @@ export function HomePage({ userData, onOpenSleepRecords, onOpenPlan }: HomePageP
                   记录昨晚睡眠
                 </button>
                 <button
-                  onClick={onOpenPlan}
+                  onClick={onOpenAccount}
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-white/12 bg-white/6 px-5 py-3 text-sm font-semibold text-white/84 transition hover:bg-white/10"
                 >
                   <ArrowRight size={16} />
-                  查看今日任务
+                  完成基础建档
                 </button>
               </div>
             </div>
@@ -98,6 +104,9 @@ export function HomePage({ userData, onOpenSleepRecords, onOpenPlan }: HomePageP
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-[32px] border border-sky-200/16 bg-gradient-to-br from-sky-400/14 via-slate-900/72 to-violet-300/10 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.25)] backdrop-blur-xl sm:p-8">
           <div className="max-w-3xl space-y-4">
+            <div className="inline-flex rounded-full border border-sky-200/20 bg-sky-200/8 px-4 py-2 text-sm font-semibold text-sky-100">
+              陕西省中医医院脑病科
+            </div>
             <p className="text-sm font-medium text-sky-100">帮助患者更轻松地记录睡眠、理解问题、执行任务，并逐步重建稳定睡眠。</p>
             <h2 className="text-3xl font-semibold text-white">今日睡眠概况</h2>
             <p className="text-base leading-8 text-white/68">{homeSummary.statusBody}</p>
@@ -135,6 +144,11 @@ export function HomePage({ userData, onOpenSleepRecords, onOpenPlan }: HomePageP
           </div>
 
           <p className="mt-5 text-sm text-white/54">{homeSummary.basis}</p>
+
+          <div className="mt-5 rounded-[24px] border border-sky-200/16 bg-sky-300/8 p-4">
+            <p className="text-sm font-semibold text-sky-100">今日建议</p>
+            <p className="mt-2 text-sm leading-7 text-white/74">{todayInsight}</p>
+          </div>
         </div>
 
         <div className="rounded-[32px] border border-white/10 bg-white/6 p-6 backdrop-blur-xl sm:p-8">

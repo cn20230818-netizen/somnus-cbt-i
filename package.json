@@ -3,7 +3,7 @@
   "private": false,
   "version": "1.0.0",
   "type": "module",
-  "description": "数据驱动的睡眠认知行为疗法(CBT-I)系统，根据患者测评和日志自动生成个性化治疗任务",
+  "description": "陕西省中医医院脑病科 Somnus CBT-I 睡眠认知行为疗法数字干预系统，提供基础建档、睡眠日志、量表评估、个案概念化、阶段化干预与康复追踪。",
   "keywords": [
     "cbt-i",
     "insomnia",
@@ -18,15 +18,16 @@
     "type": "git",
     "url": "https://github.com/cn20230818-netizen/somnus-cbt-i.git"
   },
-  "author": "Somnus AI Team",
+  "author": "Somnus CBT-I Product Team",
   "license": "MIT",
-  "homepage": "https://cn20230818-netizen.github.io/somnus-cbt-i",
+  "homepage": "https://sxphcmsleep.com.cn",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "self-check": "tsx scripts/systemSelfCheck.ts",
     "deploy": "npm run build && gh-pages -d dist",
     "server": "tsx server/index.ts"
   },

@@ -1,10 +1,12 @@
 import { Download, FileHeart, FlaskConical, RefreshCcw } from 'lucide-react';
 import { DataMode, UserData } from '../types';
 import { getAssessmentSummaries, getDataStatusDescription, getLatestDbas, getLatestPsqi } from '../lib/insights';
+import { analysisService } from '../services/analysisEngine';
 
 interface AssessmentsPageProps {
   userData: UserData;
   dataMode: Exclude<DataMode, 'unset'>;
+  onOpenIntake: () => void;
   onOpenDbas: () => void;
   onOpenPsqi: () => void;
   onExportData: () => void;
@@ -28,6 +30,7 @@ function severityCopy(score: number) {
 export function AssessmentsPage({
   userData,
   dataMode,
+  onOpenIntake,
   onOpenDbas,
   onOpenPsqi,
   onExportData,
@@ -37,6 +40,40 @@ export function AssessmentsPage({
   const { dbasSummary, psqiSummary } = getAssessmentSummaries(userData);
   const latestDbas = getLatestDbas(userData);
   const latestPsqi = getLatestPsqi(userData);
+  const analysis = analysisService.buildAnalysisBundle(userData);
+  const intakeComplete = Boolean(
+    userData.riskProfile.insomniaDuration?.trim() &&
+      userData.riskProfile.treatmentPreference?.trim() &&
+      userData.riskProfile.readinessForBehaviorChange,
+  );
+  const reservedAssessments = [
+    {
+      label: 'ISI 失眠严重度',
+      value: userData.isiResults[0]?.score ?? '未启用',
+      description: userData.isiResults[0]?.interpretation || '数据结构已预留，可在下一轮接入正式作答流程。',
+    },
+    {
+      label: 'ESS 日间嗜睡',
+      value: userData.essResults[0]?.score ?? '未启用',
+      description: userData.essResults[0]?.interpretation || '用于补充判断白天困倦与功能受损程度。',
+    },
+    {
+      label: '焦虑 / 抑郁简表',
+      value:
+        userData.gad7Results[0]?.score !== undefined || userData.phq9Results[0]?.score !== undefined
+          ? `GAD-7 ${userData.gad7Results[0]?.score ?? '-'} / PHQ-9 ${userData.phq9Results[0]?.score ?? '-'}`
+          : '未启用',
+      description: '用于辅助判断情绪负荷是否正在干扰标准 CBT-I 的推进节奏。',
+    },
+    {
+      label: 'OSA / 双相风险筛查',
+      value:
+        userData.osaRiskResults[0]?.riskLevel || userData.bipolarRiskResults[0]?.riskLevel
+          ? `OSA ${userData.osaRiskResults[0]?.riskLevel || '-'} / 双相 ${userData.bipolarRiskResults[0]?.riskLevel || '-'}`
+          : '未启用',
+      description: '用于在入组筛查阶段拦截不适合直接进入标准 CBT-I 的情形。',
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 pt-8 sm:px-6">
@@ -45,8 +82,8 @@ export function AssessmentsPage({
           <div className="flex items-center gap-3">
             <FileHeart className="text-sky-200" size={18} />
             <div>
-              <p className="text-sm font-medium text-sky-100">评估中心</p>
-              <h2 className="mt-1 text-3xl font-semibold text-white">量表帮助你更清楚地理解当前问题重点</h2>
+              <p className="text-sm font-medium text-sky-100">陕西省中医医院脑病科｜评估中心</p>
+              <h2 className="mt-1 text-3xl font-semibold text-white">从基础建档、量表评估到适合性判断，逐步建立规范化 CBT-I 入口</h2>
             </div>
           </div>
           <p className="mt-4 text-sm leading-7 text-white/68">
@@ -89,6 +126,90 @@ export function AssessmentsPage({
                 重新载入示例数据
               </button>
             )}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
+          <p className="text-sm font-semibold text-sky-100">入组筛查与基础建档</p>
+          <h3 className="mt-2 text-2xl font-semibold text-white">
+            {analysis.screening.eligibleForStandardCBTI ? '当前已具备进入标准 CBT-I 的基础条件' : '请先完成基础建档，再让系统判断是否适合进入标准 CBT-I'}
+          </h3>
+          <p className="mt-3 text-sm leading-7 text-white/68">
+            这里会汇总失眠病程、起病背景、风险与执行准备度。没有这层信息，治疗计划只能停留在“记录与观察”，无法稳定进入分层干预。
+          </p>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-[24px] border border-white/10 bg-white/4 p-4">
+              <p className="text-sm text-white/46">基础建档状态</p>
+              <p className="mt-2 text-lg font-semibold text-white">{intakeComplete ? '已完成' : '待补充'}</p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/4 p-4">
+              <p className="text-sm text-white/46">失眠病程</p>
+              <p className="mt-2 text-lg font-semibold text-white">{userData.riskProfile.insomniaDuration || '尚未填写'}</p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/4 p-4">
+              <p className="text-sm text-white/46">行为改变准备度</p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                {userData.riskProfile.readinessForBehaviorChange === 'high'
+                  ? '较高'
+                  : userData.riskProfile.readinessForBehaviorChange === 'moderate'
+                    ? '中等'
+                    : userData.riskProfile.readinessForBehaviorChange === 'low'
+                      ? '较低'
+                      : '尚未填写'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[28px] border border-white/10 bg-white/4 p-5">
+            <p className="text-sm font-semibold text-white">当前适合性判断</p>
+            <p className="mt-3 text-sm leading-7 text-white/72">
+              {analysis.screening.eligibleForStandardCBTI
+                ? '目前适合进入标准 CBT-I，系统会继续基于睡眠日志、量表和依从性反馈做周级调参。'
+                : analysis.screening.redirectRecommendation || '当前资料仍不足，请先完成基础建档或补充评估。'}
+            </p>
+            <div className="mt-4 space-y-2">
+              {analysis.screening.cautionFlags.length > 0 ? (
+                analysis.screening.cautionFlags.map((item) => (
+                  <p key={item} className="text-sm leading-7 text-white/64">
+                    {item}
+                  </p>
+                ))
+              ) : (
+                <p className="text-sm leading-7 text-white/64">当前未见需要立即中止标准流程的高危提示。</p>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={onOpenIntake}
+            className="mt-6 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
+          >
+            {intakeComplete ? '更新基础建档' : '开始基础建档'}
+          </button>
+        </div>
+
+        <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
+          <p className="text-sm font-semibold text-sky-100">评估扩展预留</p>
+          <h3 className="mt-2 text-2xl font-semibold text-white">后续量表已预留数据结构</h3>
+          <p className="mt-3 text-sm leading-7 text-white/68">
+            当前正式开放 DBAS 与 PSQI。ISI、ESS、情绪简表、OSA 风险和双相风险已经具备数据层结构，后续可继续接入正式作答流程。
+          </p>
+
+          <div className="mt-5 space-y-3">
+            {reservedAssessments.map((item) => (
+              <div key={item.label} className="rounded-[24px] border border-white/10 bg-white/4 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-white">{item.label}</p>
+                  <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/60">
+                    {typeof item.value === 'number' ? String(item.value) : item.value}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-7 text-white/64">{item.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

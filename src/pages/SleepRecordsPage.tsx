@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, MoonStar, Plus, Save } from 'lucide-react';
-import { UserData, SleepLog } from '../types';
+import { UserData, SleepLog, WorkShiftType } from '../types';
 import {
   getAverageSleepDurationHours,
   getEmptyStateMessage,
@@ -9,6 +9,7 @@ import {
   resolveTreatmentPhase,
   sortSleepLogs,
 } from '../lib/insights';
+import { analysisService } from '../services/analysisEngine';
 import {
   calculateSleepEfficiency,
   formatHoursFromMinutes,
@@ -37,6 +38,9 @@ interface DraftLogState {
   painOrSomaticSymptoms: number;
   sleepMedicationUse: boolean;
   nicotineUse: boolean;
+  weekendScheduleDeviation: number;
+  workShiftType: WorkShiftType;
+  jetLagOrTravel: boolean;
   preSleepThoughts: string;
   lastHourActivities: string;
   nocturnalEnvironmentIssues: string;
@@ -62,6 +66,9 @@ function createDraftLog(): DraftLogState {
     painOrSomaticSymptoms: 1,
     sleepMedicationUse: false,
     nicotineUse: false,
+    weekendScheduleDeviation: 0,
+    workShiftType: 'regular',
+    jetLagOrTravel: false,
     preSleepThoughts: '',
     lastHourActivities: '',
     nocturnalEnvironmentIssues: '',
@@ -98,6 +105,7 @@ export function SleepRecordsPage({
   const latestLogs = [...sortedLogs].reverse();
   const phase = resolveTreatmentPhase(userData);
   const weeklyTrend = getWeeklyTrendSummary(userData);
+  const analysis = analysisService.buildAnalysisBundle(userData);
   const averageSleepDuration = getAverageSleepDurationHours(userData);
   const emptyState = getEmptyStateMessage(userData);
 
@@ -167,6 +175,9 @@ export function SleepRecordsPage({
       painOrSomaticSymptoms: draftLog.painOrSomaticSymptoms,
       sleepMedicationUse: draftLog.sleepMedicationUse,
       nicotineUse: draftLog.nicotineUse,
+      weekendScheduleDeviation: draftLog.weekendScheduleDeviation,
+      workShiftType: draftLog.workShiftType,
+      jetLagOrTravel: draftLog.jetLagOrTravel,
       preSleepThoughts: splitItems(draftLog.preSleepThoughts),
       lastHourActivities: splitItems(draftLog.lastHourActivities),
       nocturnalEnvironmentIssues: splitItems(draftLog.nocturnalEnvironmentIssues),
@@ -328,6 +339,7 @@ export function SleepRecordsPage({
                         { key: 'caffeineIntake', label: '咖啡因摄入（杯）' },
                         { key: 'alcoholIntake', label: '酒精摄入（杯）' },
                         { key: 'eveningScreenExposure', label: '晚间屏幕暴露（分钟）' },
+                        { key: 'weekendScheduleDeviation', label: '周末补觉 / 作息偏移（分钟）' },
                       ].map((field) => (
                         <label key={field.key} className="space-y-2 text-sm text-white/76">
                           <span>{field.label}</span>
@@ -344,7 +356,43 @@ export function SleepRecordsPage({
                             className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
                           />
                         </label>
-                      ))}
+                        ))}
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2 text-sm text-white/76">
+                        <span>班次类型</span>
+                        <select
+                          value={draftLog.workShiftType}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              workShiftType: event.target.value as WorkShiftType,
+                            }))
+                          }
+                          className="w-full rounded-[24px] border border-white/10 bg-slate-950/54 px-4 py-4 text-base text-white outline-none transition focus:border-sky-300/60"
+                        >
+                          <option value="regular">固定日班</option>
+                          <option value="early">早班</option>
+                          <option value="rotating">轮班</option>
+                          <option value="night">夜班</option>
+                          <option value="irregular">不规律班次</option>
+                        </select>
+                      </label>
+                      <label className="flex items-center gap-3 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/76">
+                        <input
+                          type="checkbox"
+                          checked={draftLog.jetLagOrTravel}
+                          onChange={(event) =>
+                            setDraftLog((current) => ({
+                              ...current,
+                              jetLagOrTravel: event.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-sky-300"
+                        />
+                        近期存在跨时区旅行或节律错位
+                      </label>
                     </div>
 
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -596,6 +644,9 @@ export function SleepRecordsPage({
                   <div className="rounded-[22px] border border-sky-200/16 bg-sky-300/8 p-4 text-sm leading-7 text-white/76">
                     与本周目标比较：{weekGoalComparison}
                   </div>
+                  <div className="rounded-[22px] border border-white/8 bg-white/5 p-4 text-sm leading-7 text-white/70">
+                    本周分析摘要：{analysis.weeklyReview.weekSummary}
+                  </div>
                 </div>
               </div>
             </aside>
@@ -647,6 +698,15 @@ export function SleepRecordsPage({
                     </div>
                   </div>
                   {log.note && <p className="mt-4 text-sm leading-7 text-white/64">{log.note}</p>}
+                  {((log.napDuration || 0) > 0 || (log.weekendScheduleDeviation || 0) > 0 || log.jetLagOrTravel) && (
+                    <p className="mt-3 text-sm leading-7 text-white/50">
+                      {(log.napDuration || 0) > 0 ? `午睡 ${log.napDuration} 分钟` : null}
+                      {(log.napDuration || 0) > 0 && (log.weekendScheduleDeviation || 0) > 0 ? ' · ' : null}
+                      {(log.weekendScheduleDeviation || 0) > 0 ? `作息偏移 ${log.weekendScheduleDeviation} 分钟` : null}
+                      {((log.napDuration || 0) > 0 || (log.weekendScheduleDeviation || 0) > 0) && log.jetLagOrTravel ? ' · ' : null}
+                      {log.jetLagOrTravel ? '近期存在旅行/时差扰动' : null}
+                    </p>
+                  )}
                 </div>
               );
             })

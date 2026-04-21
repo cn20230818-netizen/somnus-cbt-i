@@ -223,37 +223,60 @@ function toRiskScore(level?: RiskLevel) {
   return level === 'high' ? 2 : level === 'moderate' ? 1 : 0;
 }
 
+function mergeRiskLevels(...levels: Array<RiskLevel | undefined>): RiskLevel {
+  return levels.reduce<RiskLevel>(
+    (selected, current) =>
+      toRiskScore(current) > toRiskScore(selected) ? current || selected : selected,
+    'low',
+  );
+}
+
 function buildScreening(userData: UserData): ScreeningOutcome {
   const logs = sortLogs(userData);
   const recent14 = logs.slice(-14);
   const symptomaticNights = recent14.filter((log) => {
     const latency = calculateSleepLatencyMinutes(log);
     const earlyWake = clockTimeToMinutes(log.getUpTime) - clockTimeToMinutes(log.wakeTime) > 45;
-    return latency > 30 || (log.wakeDuration || 0) > 30 || earlyWake;
+    return latency >= 30 || (log.wakeDuration || 0) >= 30 || earlyWake;
   }).length;
   const latestEss = getLatestScale(userData.essResults);
+  const latestIsi = getLatestScale(userData.isiResults);
   const latestPsqi = getLatestScale(userData.psqiResults);
   const durationMonths = parseDurationMonths(userData.riskProfile.insomniaDuration);
+  const nocturnalSymptomPattern = symptomaticNights >= Math.max(3, Math.ceil(recent14.length / 2));
+  const scaleSuggestsInsomnia = (latestIsi?.score || 0) >= 8 || (latestPsqi?.totalScore || 0) >= 8;
+  const ongoingStructuredTreatment =
+    userData.treatmentPhase.phase !== 'assessment' || userData.treatmentPhase.currentWeek > 1;
+  const meetsChronicity = (durationMonths || 0) >= 3;
   const hasDaytimeImpairment =
     (average(recent14.map((log) => log.daytimeSleepiness)) || 0) >= 3 ||
     (latestEss?.score || 0) >= 8 ||
     (latestPsqi?.components.dysfunction || 0) >= 2;
 
   const chronicInsomniaReasons: string[] = [];
-  if (symptomaticNights >= Math.max(3, Math.ceil(recent14.length / 2))) {
+  if (!durationMonths) {
+    chronicInsomniaReasons.push('当前尚未补充失眠病程信息，标准 CBT-I 适合性判断仍不完整。');
+  }
+  if (nocturnalSymptomPattern) {
     chronicInsomniaReasons.push('近两周多数夜晚存在入睡延迟、夜间清醒偏长或明显早醒。');
+  }
+  if (scaleSuggestsInsomnia) {
+    chronicInsomniaReasons.push('最新量表结果仍提示存在临床意义的失眠负担。');
   }
   if (hasDaytimeImpairment) {
     chronicInsomniaReasons.push('同时伴有明确的白天困倦、疲劳或功能受损。');
   }
-  if ((durationMonths || 0) >= 3) {
+  if (meetsChronicity) {
     chronicInsomniaReasons.push('病程已达到慢性失眠倾向。');
+  }
+  if (ongoingStructuredTreatment && logs.length >= 7) {
+    chronicInsomniaReasons.push('当前已进入阶段化治疗路径，可结合周级复盘继续调参与巩固。');
   }
 
   const chronicInsomniaPattern =
-    symptomaticNights >= Math.max(3, Math.ceil(recent14.length / 2)) &&
+    (nocturnalSymptomPattern || scaleSuggestsInsomnia || ongoingStructuredTreatment) &&
     hasDaytimeImpairment &&
-    (durationMonths || 0) >= 1;
+    meetsChronicity;
 
   const cautionFlags: string[] = [];
   const hasShiftRisk =
@@ -266,7 +289,8 @@ function buildScreening(userData: UserData): ScreeningOutcome {
     cautionFlags.push('近期有跨时区或旅行节律扰动，需先处理节律错位问题。');
   }
   const latestOsa = getLatestScale(userData.osaRiskResults as OSARiskResult[]);
-  if ((latestOsa?.riskLevel || userData.riskProfile.respiratoryRisk) === 'high') {
+  const respiratoryRisk = mergeRiskLevels(userData.riskProfile.respiratoryRisk, latestOsa?.riskLevel);
+  if (respiratoryRisk === 'high') {
     cautionFlags.push('存在明显 OSA 或呼吸相关风险，需要先进一步评估。');
   }
   if (userData.riskProfile.parasomniaRisk === 'high') {
@@ -291,12 +315,16 @@ function buildScreening(userData: UserData): ScreeningOutcome {
   if (userData.riskProfile.pregnancyOrSpecialPopulation) {
     cautionFlags.push('属于特殊人群，睡眠限制类策略需个体化调整。');
   }
+  if (!durationMonths) {
+    cautionFlags.push('基础建档尚未完成，尤其缺少失眠病程信息。');
+  }
 
   const eligibleForStandardCBTI =
     chronicInsomniaPattern &&
+    Boolean(durationMonths) &&
     !hasShiftRisk &&
     !logs.some((log) => log.jetLagOrTravel) &&
-    (latestOsa?.riskLevel || userData.riskProfile.respiratoryRisk || 'low') !== 'high' &&
+    respiratoryRisk !== 'high' &&
     userData.riskProfile.parasomniaRisk !== 'high' &&
     userData.riskProfile.seizureRisk !== 'high' &&
     (latestBipolar?.riskLevel || 'low') === 'low' &&
@@ -306,9 +334,11 @@ function buildScreening(userData: UserData): ScreeningOutcome {
 
   let redirectRecommendation: string | null = null;
   if (!eligibleForStandardCBTI) {
-    if (!chronicInsomniaPattern) {
+    if (!durationMonths) {
+      redirectRecommendation = '当前需要先完成基础建档，尤其是失眠病程和起病背景信息，再判断是否适合进入标准 CBT-I。';
+    } else if (!chronicInsomniaPattern) {
       redirectRecommendation = '当前资料尚不足以支持慢性失眠型标准 CBT-I，请继续完成睡眠日记与基础评估。';
-    } else if ((latestOsa?.riskLevel || userData.riskProfile.respiratoryRisk || 'low') === 'high') {
+    } else if (respiratoryRisk === 'high') {
       redirectRecommendation = '当前不建议直接进入标准 CBT-I，请先完成呼吸相关睡眠障碍评估。';
     } else if ((userData.riskProfile.selfHarmRisk || 'low') !== 'low') {
       redirectRecommendation = '当前不建议直接进入标准 CBT-I，请先进行风险评估与面对面干预。';
@@ -520,6 +550,10 @@ function buildConceptualization(userData: UserData, assessment: ClinicalAssessme
   }
   if ((assessment.scheduleStability.weekendCatchupSleep || 0) > 60) {
     perpetuate.add('周末补觉');
+  }
+  if ((average(recent7.map((log) => log.weekendScheduleDeviation || 0)) || 0) > 60) {
+    perpetuate.add('周末补觉');
+    perpetuate.add('不规律起床时间');
   }
   if ((assessment.scheduleStability.napBurden || 0) > 30) {
     perpetuate.add('白天小睡');
@@ -1005,16 +1039,27 @@ function buildTreatmentPlan(
     conceptualization.perpetuate.includes('睡前或在床使用手机/工作'),
   ].filter(Boolean).length;
 
-  const restrictionCandidate = [
+  const restrictionSafe = screening.cautionFlags.every((flag) => !flag.includes('睡眠限制'));
+  const restrictionContinuationCandidate =
+    userData.treatmentPhase.phase === 'intensive' &&
+    userData.treatmentPhase.currentWeek >= 2 &&
+    avgTIB > 0 &&
+    avgTST > 0 &&
+    avgTIB <= avgTST + 45 &&
+    restrictionSafe;
+  const restrictionInitiationCandidate = [
     avgSE < 85,
-    avgTIB - avgTST > 60,
+    avgTIB - avgTST > 45 || conceptualization.perpetuate.includes('提前上床或赖床'),
     readiness !== 'low',
-    screening.cautionFlags.every((flag) => !flag.includes('睡眠限制')),
+    restrictionSafe,
   ].filter(Boolean).length >= 3;
+  const restrictionCandidate = restrictionInitiationCandidate || restrictionContinuationCandidate;
 
   const shouldCompress =
     restrictionCandidate &&
-    (dropoutRisk !== 'low' || readiness === 'moderate' || (assessment.daytimeImpairmentLevel === 'severe'));
+    (dropoutRisk !== 'low' ||
+      readiness === 'moderate' ||
+      assessment.daytimeImpairmentLevel === 'severe');
 
   const cognitivePriority = [
     (assessment.cognitionMoodMetrics.dbasTotal || 0) >= 4,
@@ -1024,9 +1069,10 @@ function buildTreatmentPlan(
   ].filter(Boolean).length >= 2;
 
   const relaxationPriority = [
-    bedtimeArousal >= 3.5,
-    includesAny(recent7.flatMap((log) => log.preSleepThoughts || []), ['停不下来', '脑子', '紧张']),
+    bedtimeArousal >= 3,
+    includesAny(recent7.flatMap((log) => log.preSleepThoughts || []), ['停不下来', '脑子', '紧张', '想太多', '反复想']),
     (assessment.cognitionMoodMetrics.anxietyBurden || 0) >= 8,
+    conceptualization.perpetuate.includes('努力性入睡与睡前高唤醒'),
   ].filter(Boolean).length >= 2;
 
   const hygieneAuxiliary = [
@@ -1038,7 +1084,11 @@ function buildTreatmentPlan(
 
   const paradoxicalCandidate = avgLatency > 45 && bedtimeArousal >= 3.5 && includesAny(recent7.flatMap((log) => log.preSleepThoughts || []), ['必须', '赶紧']);
   const biofeedbackCandidate = relaxationPriority && userData.physiologicalData.some((item) => (item.restingHeartRate || 0) > 82 || (item.heartRateVariability || 0) < 25);
-  const scheduleModuleCandidate = (assessment.scheduleStability.bedtimeVariability || 0) > 45 || (assessment.scheduleStability.waketimeVariability || 0) > 45 || (assessment.scheduleStability.weekendCatchupSleep || 0) > 60;
+  const scheduleModuleCandidate =
+    (assessment.scheduleStability.bedtimeVariability || 0) > 45 ||
+    (assessment.scheduleStability.waketimeVariability || 0) > 45 ||
+    (assessment.scheduleStability.weekendCatchupSleep || 0) > 60 ||
+    (average(recent7.map((log) => log.weekendScheduleDeviation || 0)) || 0) > 60;
   const relapseCandidate = avgSE >= 85 && recent7.length >= 7 && userData.treatmentPhase.currentWeek >= 4;
 
   let stage: TreatmentStage = '阶段化治疗计划';

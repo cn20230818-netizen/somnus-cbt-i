@@ -129,6 +129,14 @@ export function hasAssessmentData(userData: UserData) {
   return Boolean(getLatestDbas(userData) && getLatestPsqi(userData));
 }
 
+export function hasCompletedIntake(userData: UserData) {
+  return Boolean(
+    userData.riskProfile.insomniaDuration?.trim() &&
+      userData.riskProfile.treatmentPreference?.trim() &&
+      userData.riskProfile.readinessForBehaviorChange,
+  );
+}
+
 export function getDataStatusLabel(mode: 'demo' | 'real') {
   return mode === 'demo' ? '示例数据模式' : '真实记录模式';
 }
@@ -637,6 +645,14 @@ export function getCurrentTasks(userData: UserData) {
 }
 
 export function getEmptyStateMessage(userData: UserData) {
+  if (!hasCompletedIntake(userData)) {
+    return {
+      title: '先完成基础建档',
+      description: '在正式进入标准 CBT-I 之前，系统需要先知道你的失眠病程、起病背景和风险信息，才能更可靠地判断适合性。',
+      nextStep: '先到“评估与我的”完成入组筛查与基础建档，再开始连续记录睡眠。',
+    };
+  }
+
   if (!hasSufficientSleepData(userData, 1)) {
     return {
       title: '先记录第一晚睡眠',

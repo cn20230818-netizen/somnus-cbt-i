@@ -23,7 +23,7 @@ export function OnboardingFlow({ onStartReal, onStartDemo, onOpenLegal }: Onboar
                 <span className="block text-sky-100">Somnus CBT-I 睡眠认知行为疗法数字干预系统</span>
               </h1>
               <p className="max-w-3xl text-base leading-8 text-white/70 sm:text-lg">
-                这是一个帮助你记录睡眠、完成测评、获取个体化 CBT-I 任务建议，并逐步重建稳定睡眠的数字工具。
+                这是一个帮助你完成基础建档、记录睡眠、完成测评、获取阶段化 CBT-I 计划，并逐步重建稳定睡眠的数字工具。
               </p>
             </div>
           </div>
@@ -38,7 +38,7 @@ export function OnboardingFlow({ onStartReal, onStartDemo, onOpenLegal }: Onboar
               {
                 icon: <Sparkles className="text-violet-200" size={20} />,
                 title: 'Step 2',
-                text: '它会帮助你记录睡眠、完成测评，并在医生指导下理解当前最需要优先处理的问题。',
+                text: '它会帮助你完成基础建档、记录睡眠、完成测评，并在医生指导下理解当前最需要优先处理的问题。',
               },
               {
                 icon: <ChevronRight className="text-emerald-200" size={20} />,

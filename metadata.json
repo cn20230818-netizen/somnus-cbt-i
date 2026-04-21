@@ -1,6 +1,11 @@
 {
-  "name": "Somnus CBT-I",
-  "description": "A personalized, data-driven Cognitive Behavioral Therapy for Insomnia (CBT-I) system with automated task generation and sleep tracking.",
+  "name": "陕西省中医医院脑病科｜Somnus CBT-I 睡眠认知行为疗法数字干预系统",
+  "description": "基于睡眠日志、量表评估、个案概念化与阶段化干预的失眠数字辅助管理工具。",
   "requestFramePermissions": [],
-  "majorCapabilities": ["sleep_hygiene"]
+  "majorCapabilities": [
+    "sleep_diary",
+    "clinical_assessment",
+    "cbt_i_planning",
+    "recovery_tracking"
+  ]
 }

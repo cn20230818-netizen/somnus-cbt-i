@@ -2,7 +2,18 @@ import { format } from 'date-fns';
 import { CBTIAnalysisBundle, CBTTask, UserData } from '../types';
 import { analysisService } from './analysisEngine';
 
-const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
+function getGeminiApiKey() {
+  const viteKey = import.meta.env?.VITE_GEMINI_API_KEY?.trim();
+  if (viteKey) {
+    return viteKey;
+  }
+
+  const runtimeKey = (globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> };
+  }).process?.env?.VITE_GEMINI_API_KEY?.trim();
+
+  return runtimeKey || '';
+}
 
 export interface TaskGenerationResult {
   tasks: CBTTask[];
@@ -218,6 +229,7 @@ ${JSON.stringify(baseTasks, null, 2)}
 export async function generateTaskPlan(userData: UserData): Promise<TaskGenerationResult> {
   try {
     const analysis = analysisService.buildAnalysisBundle(userData);
+    const geminiApiKey = getGeminiApiKey();
 
     if (!analysis.screening.eligibleForStandardCBTI) {
       return {

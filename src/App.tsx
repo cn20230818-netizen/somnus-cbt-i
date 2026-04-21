@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { AppFooter } from './components/AppFooter';
 import { AppHeader } from './components/AppHeader';
 import { BottomNav, PrimaryTab } from './components/BottomNav';
+import { ClinicalIntakeForm } from './components/ClinicalIntakeForm';
 import { DBASForm } from './components/DBASForm';
 import { LegalCenter, LegalSection } from './components/LegalCenter';
 import { OnboardingFlow } from './components/OnboardingFlow';
@@ -19,8 +20,18 @@ import { AssessmentsPage } from './pages/AssessmentsPage';
 import { HomePage } from './pages/HomePage';
 import { SleepRecordsPage } from './pages/SleepRecordsPage';
 import { TreatmentPlanPage } from './pages/TreatmentPlanPage';
+import { analysisService } from './services/analysisEngine';
 import { generateTaskPlan } from './services/geminiService';
 import { AppState, CBTTask, DBASResult, PSQIResult, SleepLog, UserData } from './types';
+
+function readHashTab(): PrimaryTab {
+  if (typeof window === 'undefined') {
+    return 'home';
+  }
+
+  const value = window.location.hash.replace(/^#\/?/, '').split('/')[0];
+  return value === 'sleep' || value === 'plan' || value === 'account' ? value : 'home';
+}
 
 function syncTreatmentPhase(userData: UserData): UserData {
   const phase = resolveTreatmentPhase(userData);
@@ -42,10 +53,11 @@ export default function App() {
   const initialAppState = useMemo(() => loadAppState(), []);
   const [appState, setAppState] = useState<AppState>(initialAppState);
   const [userData, setUserData] = useState<UserData>(() => syncTreatmentPhase(loadUserData(initialAppState)));
-  const [activeTab, setActiveTab] = useState<PrimaryTab>('home');
+  const [activeTab, setActiveTab] = useState<PrimaryTab>(() => readHashTab());
   const [composerOpen, setComposerOpen] = useState(false);
   const [showDbas, setShowDbas] = useState(false);
   const [showPsqi, setShowPsqi] = useState(false);
+  const [showIntake, setShowIntake] = useState(false);
   const [legalOpen, setLegalOpen] = useState(false);
   const [legalSection, setLegalSection] = useState<LegalSection>('permissions');
   const [taskGenerationMessage, setTaskGenerationMessage] = useState<ToastItem | null>(null);
@@ -62,6 +74,30 @@ export default function App() {
       saveUserData(syncTreatmentPhase(userData));
     }
   }, [appState.setupComplete, userData]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const nextHash = `#/${activeTab}`;
+    if (window.location.hash !== nextHash) {
+      window.history.replaceState(null, '', nextHash);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleHashChange = () => {
+      setActiveTab(readHashTab());
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const pushToast = (tone: ToastItem['tone'], title: string, description?: string) => {
     const item = {
@@ -108,14 +144,14 @@ export default function App() {
   };
 
   const handleSaveLog = (log: SleepLog) => {
-    updateUserData((current) => {
-      const nextLogs = [...current.sleepLogs, log].sort((a, b) => a.date.localeCompare(b.date));
-      return {
-        ...current,
-        sleepLogs: nextLogs,
-      };
+    const nextData = syncTreatmentPhase({
+      ...userData,
+      sleepLogs: [...userData.sleepLogs, log].sort((a, b) => a.date.localeCompare(b.date)),
     });
-    pushToast('success', '已保存昨晚睡眠', '系统已更新趋势、阶段判断和任务建议。');
+    const analysis = analysisService.buildAnalysisBundle(nextData);
+
+    setUserData(nextData);
+    pushToast('success', '已保存昨晚睡眠', `系统已更新趋势、治疗阶段和本周分析摘要。${analysis.weeklyReview.weekSummary}`);
     setActiveTab('home');
   };
 
@@ -323,6 +359,18 @@ export default function App() {
     setLegalOpen(true);
   };
 
+  const handleSaveIntake = (value: UserData['riskProfile']) => {
+    updateUserData((current) => ({
+      ...current,
+      riskProfile: {
+        ...current.riskProfile,
+        ...value,
+      },
+    }));
+    setShowIntake(false);
+    pushToast('success', '已保存基础建档', '系统会基于新的病程、风险与准备度信息更新适合性判断和治疗计划。');
+  };
+
   if (!appState.setupComplete || appState.dataMode === 'unset') {
     return (
       <>
@@ -358,6 +406,7 @@ export default function App() {
               setComposerOpen(true);
             }}
             onOpenPlan={() => setActiveTab('plan')}
+            onOpenAccount={() => setActiveTab('account')}
           />
         )}
 
@@ -384,6 +433,7 @@ export default function App() {
           <AssessmentsPage
             userData={userData}
             dataMode={appState.dataMode}
+            onOpenIntake={() => setShowIntake(true)}
             onOpenDbas={() => setShowDbas(true)}
             onOpenPsqi={() => setShowPsqi(true)}
             onExportData={handleExportData}
@@ -406,6 +456,13 @@ export default function App() {
 
       {showDbas && <DBASForm onClose={() => setShowDbas(false)} onSave={handleSaveDbas} />}
       {showPsqi && <PSQIForm onClose={() => setShowPsqi(false)} onSave={handleSavePsqi} />}
+      {showIntake && (
+        <ClinicalIntakeForm
+          initialValue={userData.riskProfile}
+          onClose={() => setShowIntake(false)}
+          onSave={handleSaveIntake}
+        />
+      )}
       <LegalCenter
         activeSection={legalSection}
         open={legalOpen}
