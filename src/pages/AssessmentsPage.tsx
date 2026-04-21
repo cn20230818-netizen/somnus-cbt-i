@@ -1,4 +1,10 @@
 import { Download, FileHeart, FlaskConical, RefreshCcw } from 'lucide-react';
+import {
+  getRiskLevelLabel,
+  getSeverityLabel,
+  getStructuredAssessmentDefinition,
+  StructuredAssessmentKey,
+} from '../lib/assessmentCatalog';
 import { DataMode, UserData } from '../types';
 import { getAssessmentSummaries, getDataStatusDescription, getLatestDbas, getLatestPsqi } from '../lib/insights';
 import { analysisService } from '../services/analysisEngine';
@@ -9,6 +15,7 @@ interface AssessmentsPageProps {
   onOpenIntake: () => void;
   onOpenDbas: () => void;
   onOpenPsqi: () => void;
+  onOpenScale: (key: StructuredAssessmentKey) => void;
   onExportData: () => void;
   onSwitchToRealMode: () => void;
   onReloadDemoData: () => void;
@@ -27,12 +34,86 @@ function severityCopy(score: number) {
   return '当前结果提示睡眠受损程度较高，建议尽快结合医生指导持续干预。';
 }
 
+function latestByDate<T extends { date: string }>(items: T[]) {
+  return [...items].sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+}
+
+function ScaleCard({
+  eyebrow,
+  title,
+  value,
+  emphasis,
+  description,
+  actionLabel,
+  onClick,
+}: {
+  eyebrow: string;
+  title: string;
+  value: string;
+  emphasis: string;
+  description: string;
+  actionLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-sky-100">{eyebrow}</p>
+          <h4 className="mt-2 text-xl font-semibold text-white">{title}</h4>
+        </div>
+        <span className="rounded-full border border-emerald-300/24 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-100">
+          已启用
+        </span>
+      </div>
+      <div className="mt-4 rounded-[22px] border border-white/10 bg-white/4 p-4">
+        <p className="text-sm text-white/46">当前状态</p>
+        <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+        <p className="mt-2 text-sm font-semibold text-white/84">{emphasis}</p>
+        <p className="mt-3 text-sm leading-7 text-white/66">{description}</p>
+      </div>
+      <button
+        onClick={onClick}
+        className="mt-5 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
+      >
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
+function QuickScaleButton({
+  label,
+  status,
+  onClick,
+}: {
+  label: string;
+  status: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex min-h-20 items-center justify-between gap-4 rounded-[22px] border border-white/10 bg-white/4 px-4 py-4 text-left transition hover:bg-white/8"
+    >
+      <div>
+        <p className="text-sm font-semibold text-white">{label}</p>
+        <p className="mt-2 text-xs leading-6 text-white/56">{status}</p>
+      </div>
+      <span className="rounded-full border border-sky-300/22 bg-sky-300/10 px-3 py-1 text-xs font-semibold text-sky-100">
+        开始
+      </span>
+    </button>
+  );
+}
+
 export function AssessmentsPage({
   userData,
   dataMode,
   onOpenIntake,
   onOpenDbas,
   onOpenPsqi,
+  onOpenScale,
   onExportData,
   onSwitchToRealMode,
   onReloadDemoData,
@@ -40,40 +121,24 @@ export function AssessmentsPage({
   const { dbasSummary, psqiSummary } = getAssessmentSummaries(userData);
   const latestDbas = getLatestDbas(userData);
   const latestPsqi = getLatestPsqi(userData);
+  const latestIsi = latestByDate(userData.isiResults);
+  const latestEss = latestByDate(userData.essResults);
+  const latestGad7 = latestByDate(userData.gad7Results);
+  const latestPhq9 = latestByDate(userData.phq9Results);
+  const latestOsa = latestByDate(userData.osaRiskResults);
+  const latestBipolar = latestByDate(userData.bipolarRiskResults);
   const analysis = analysisService.buildAnalysisBundle(userData);
   const intakeComplete = Boolean(
     userData.riskProfile.insomniaDuration?.trim() &&
       userData.riskProfile.treatmentPreference?.trim() &&
       userData.riskProfile.readinessForBehaviorChange,
   );
-  const reservedAssessments = [
-    {
-      label: 'ISI 失眠严重度',
-      value: userData.isiResults[0]?.score ?? '未启用',
-      description: userData.isiResults[0]?.interpretation || '数据结构已预留，可在下一轮接入正式作答流程。',
-    },
-    {
-      label: 'ESS 日间嗜睡',
-      value: userData.essResults[0]?.score ?? '未启用',
-      description: userData.essResults[0]?.interpretation || '用于补充判断白天困倦与功能受损程度。',
-    },
-    {
-      label: '焦虑 / 抑郁简表',
-      value:
-        userData.gad7Results[0]?.score !== undefined || userData.phq9Results[0]?.score !== undefined
-          ? `GAD-7 ${userData.gad7Results[0]?.score ?? '-'} / PHQ-9 ${userData.phq9Results[0]?.score ?? '-'}`
-          : '未启用',
-      description: '用于辅助判断情绪负荷是否正在干扰标准 CBT-I 的推进节奏。',
-    },
-    {
-      label: 'OSA / 双相风险筛查',
-      value:
-        userData.osaRiskResults[0]?.riskLevel || userData.bipolarRiskResults[0]?.riskLevel
-          ? `OSA ${userData.osaRiskResults[0]?.riskLevel || '-'} / 双相 ${userData.bipolarRiskResults[0]?.riskLevel || '-'}`
-          : '未启用',
-      description: '用于在入组筛查阶段拦截不适合直接进入标准 CBT-I 的情形。',
-    },
-  ];
+  const isiDefinition = getStructuredAssessmentDefinition('isi');
+  const essDefinition = getStructuredAssessmentDefinition('ess');
+  const gad7Definition = getStructuredAssessmentDefinition('gad7');
+  const phq9Definition = getStructuredAssessmentDefinition('phq9');
+  const osaDefinition = getStructuredAssessmentDefinition('osa');
+  const bipolarDefinition = getStructuredAssessmentDefinition('bipolar');
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 pt-8 sm:px-6">
@@ -192,24 +257,105 @@ export function AssessmentsPage({
         </div>
 
         <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
-          <p className="text-sm font-semibold text-sky-100">评估扩展预留</p>
-          <h3 className="mt-2 text-2xl font-semibold text-white">后续量表已预留数据结构</h3>
+          <p className="text-sm font-semibold text-sky-100">扩展评估与风险筛查</p>
+          <h3 className="mt-2 text-2xl font-semibold text-white">ISI、ESS、情绪负荷与风险筛查现已启用</h3>
           <p className="mt-3 text-sm leading-7 text-white/68">
-            当前正式开放 DBAS 与 PSQI。ISI、ESS、情绪简表、OSA 风险和双相风险已经具备数据层结构，后续可继续接入正式作答流程。
+            这些量表不直接给出诊断结论，而是帮助系统更早发现失眠困扰强度、白天受损、情绪负荷和需要谨慎处理的风险线索。
           </p>
 
-          <div className="mt-5 space-y-3">
-            {reservedAssessments.map((item) => (
-              <div key={item.label} className="rounded-[24px] border border-white/10 bg-white/4 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-white">{item.label}</p>
-                  <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/60">
-                    {typeof item.value === 'number' ? String(item.value) : item.value}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-7 text-white/64">{item.description}</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[24px] border border-white/10 bg-white/4 p-4">
+              <p className="text-sm text-white/46">ISI 失眠困扰</p>
+              <p className="mt-2 text-lg font-semibold text-white">{latestIsi ? `${latestIsi.score} / 28` : '可立即开始'}</p>
+              <p className="mt-2 text-sm leading-7 text-white/64">
+                {latestIsi
+                  ? latestIsi.interpretation
+                  : '用于辅助理解近两周的失眠困扰强度与治疗必要性。'}
+              </p>
+              <button
+                onClick={() => onOpenScale('isi')}
+                className="mt-4 rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-white/84 transition hover:bg-white/10"
+              >
+                {latestIsi ? '重新评估' : '开始评估'}
+              </button>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/4 p-4">
+              <p className="text-sm text-white/46">ESS 白天困倦</p>
+              <p className="mt-2 text-lg font-semibold text-white">{latestEss ? `${latestEss.score} / 24` : '可立即开始'}</p>
+              <p className="mt-2 text-sm leading-7 text-white/64">
+                {latestEss
+                  ? latestEss.interpretation
+                  : '用于判断白天嗜睡和清醒维持负担，避免只看夜间睡眠。'}
+              </p>
+              <button
+                onClick={() => onOpenScale('ess')}
+                className="mt-4 rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-white/84 transition hover:bg-white/10"
+              >
+                {latestEss ? '重新评估' : '开始评估'}
+              </button>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/4 p-4">
+              <p className="text-sm text-white/46">GAD-7 / PHQ-9</p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                {latestGad7 || latestPhq9
+                  ? `GAD-7 ${latestGad7?.score ?? '-'} / PHQ-9 ${latestPhq9?.score ?? '-'}`
+                  : '可立即开始'}
+              </p>
+              <p className="mt-2 text-sm leading-7 text-white/64">
+                用于辅助理解焦虑、高唤醒和情绪低落是否正在干扰 CBT-I 推进节奏。
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => onOpenScale('gad7')}
+                  className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-white/84 transition hover:bg-white/10"
+                >
+                  {latestGad7 ? '重做 GAD-7' : '开始 GAD-7'}
+                </button>
+                <button
+                  onClick={() => onOpenScale('phq9')}
+                  className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-white/84 transition hover:bg-white/10"
+                >
+                  {latestPhq9 ? '重做 PHQ-9' : '开始 PHQ-9'}
+                </button>
               </div>
-            ))}
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/4 p-4">
+              <p className="text-sm text-white/46">OSA / 双相风险</p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                {latestOsa || latestBipolar
+                  ? `OSA ${getRiskLevelLabel(latestOsa?.riskLevel)} / 双相 ${getRiskLevelLabel(latestBipolar?.riskLevel)}`
+                  : '可立即开始'}
+              </p>
+              <p className="mt-2 text-sm leading-7 text-white/64">
+                用于在入组筛查阶段尽早发现不适合直接进入标准 CBT-I 的风险信号。
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => onOpenScale('osa')}
+                  className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-white/84 transition hover:bg-white/10"
+                >
+                  {latestOsa ? '重做 OSA 筛查' : '开始 OSA 筛查'}
+                </button>
+                <button
+                  onClick={() => onOpenScale('bipolar')}
+                  className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-white/84 transition hover:bg-white/10"
+                >
+                  {latestBipolar ? '重做双相筛查' : '开始双相筛查'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[28px] border border-sky-200/16 bg-sky-300/8 p-5">
+            <p className="text-sm font-semibold text-sky-100">快速开始扩展评估</p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <QuickScaleButton label="ISI 失眠严重度" status={latestIsi ? `最近结果 ${latestIsi.score} / 28` : '当前未完成，可立即开始'} onClick={() => onOpenScale('isi')} />
+              <QuickScaleButton label="ESS 日间嗜睡" status={latestEss ? `最近结果 ${latestEss.score} / 24` : '当前未完成，可立即开始'} onClick={() => onOpenScale('ess')} />
+              <QuickScaleButton label="GAD-7 焦虑负荷" status={latestGad7 ? `最近结果 ${latestGad7.score} / 21` : '当前未完成，可立即开始'} onClick={() => onOpenScale('gad7')} />
+              <QuickScaleButton label="PHQ-9 情绪低落" status={latestPhq9 ? `最近结果 ${latestPhq9.score} / 27` : '当前未完成，可立即开始'} onClick={() => onOpenScale('phq9')} />
+              <QuickScaleButton label="OSA 呼吸风险" status={latestOsa ? `当前 ${getRiskLevelLabel(latestOsa.riskLevel)}` : '当前未完成，可立即开始'} onClick={() => onOpenScale('osa')} />
+              <QuickScaleButton label="双相 / 躁期风险" status={latestBipolar ? `当前 ${getRiskLevelLabel(latestBipolar.riskLevel)}` : '当前未完成，可立即开始'} onClick={() => onOpenScale('bipolar')} />
+            </div>
           </div>
         </div>
       </section>
@@ -275,6 +421,72 @@ export function AssessmentsPage({
             {latestPsqi ? '重新评估 PSQI' : '开始 PSQI 评估'}
           </button>
         </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <ScaleCard
+          eyebrow="失眠严重度"
+          title={isiDefinition.title.replace('陕西省中医医院脑病科｜', '')}
+          value={latestIsi ? `${latestIsi.score} / 28` : '可立即开始'}
+          emphasis={latestIsi ? `当前水平：${getSeverityLabel(latestIsi.severity)}` : '建议尽快完成首次评估'}
+          description={latestIsi ? latestIsi.interpretation || isiDefinition.description : isiDefinition.description}
+          actionLabel={latestIsi ? '重新评估 ISI' : '开始 ISI 评估'}
+          onClick={() => onOpenScale('isi')}
+        />
+
+        <ScaleCard
+          eyebrow="日间嗜睡"
+          title={essDefinition.title.replace('陕西省中医医院脑病科｜', '')}
+          value={latestEss ? `${latestEss.score} / 24` : '可立即开始'}
+          emphasis={latestEss ? `当前水平：${getSeverityLabel(latestEss.severity)}` : '建议尽快完成首次评估'}
+          description={latestEss ? latestEss.interpretation || essDefinition.description : essDefinition.description}
+          actionLabel={latestEss ? '重新评估 ESS' : '开始 ESS 评估'}
+          onClick={() => onOpenScale('ess')}
+        />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <ScaleCard
+          eyebrow="焦虑负荷"
+          title={gad7Definition.title.replace('陕西省中医医院脑病科｜', '')}
+          value={latestGad7 ? `${latestGad7.score} / 21` : '可立即开始'}
+          emphasis={latestGad7 ? `当前水平：${getSeverityLabel(latestGad7.severity)}` : '用于辅助理解高唤醒与担忧负荷'}
+          description={latestGad7 ? latestGad7.interpretation || gad7Definition.description : gad7Definition.description}
+          actionLabel={latestGad7 ? '重新评估 GAD-7' : '开始 GAD-7 评估'}
+          onClick={() => onOpenScale('gad7')}
+        />
+
+        <ScaleCard
+          eyebrow="情绪低落负荷"
+          title={phq9Definition.title.replace('陕西省中医医院脑病科｜', '')}
+          value={latestPhq9 ? `${latestPhq9.score} / 27` : '可立即开始'}
+          emphasis={latestPhq9 ? `当前水平：${getSeverityLabel(latestPhq9.severity)}` : '用于辅助理解动力与情绪负荷'}
+          description={latestPhq9 ? latestPhq9.interpretation || phq9Definition.description : phq9Definition.description}
+          actionLabel={latestPhq9 ? '重新评估 PHQ-9' : '开始 PHQ-9 评估'}
+          onClick={() => onOpenScale('phq9')}
+        />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <ScaleCard
+          eyebrow="呼吸风险"
+          title={osaDefinition.title.replace('陕西省中医医院脑病科｜', '')}
+          value={latestOsa ? getRiskLevelLabel(latestOsa.riskLevel) : '可立即开始'}
+          emphasis={latestOsa ? `风险分：${latestOsa.score ?? 0}` : '用于筛查不适合直接进入标准 CBT-I 的呼吸风险'}
+          description={latestOsa ? latestOsa.note || osaDefinition.description : osaDefinition.description}
+          actionLabel={latestOsa ? '重新筛查 OSA 风险' : '开始 OSA 风险筛查'}
+          onClick={() => onOpenScale('osa')}
+        />
+
+        <ScaleCard
+          eyebrow="双相 / 躁期风险"
+          title={bipolarDefinition.title.replace('陕西省中医医院脑病科｜', '')}
+          value={latestBipolar ? getRiskLevelLabel(latestBipolar.riskLevel) : '可立即开始'}
+          emphasis={latestBipolar ? `风险分：${latestBipolar.score ?? 0}` : '用于筛查需要先进一步评估情绪稳定性的情况'}
+          description={latestBipolar ? latestBipolar.note || bipolarDefinition.description : bipolarDefinition.description}
+          actionLabel={latestBipolar ? '重新筛查双相风险' : '开始双相风险筛查'}
+          onClick={() => onOpenScale('bipolar')}
+        />
       </section>
     </div>
   );

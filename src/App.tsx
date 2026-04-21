@@ -8,8 +8,10 @@ import { DBASForm } from './components/DBASForm';
 import { LegalCenter, LegalSection } from './components/LegalCenter';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { PSQIForm } from './components/PSQIForm';
+import { StructuredScaleForm } from './components/StructuredScaleForm';
 import { ToastItem, ToastViewport } from './components/ToastViewport';
 import { createDemoUserData, createEmptyUserData } from './data/demoData';
+import { StructuredAssessmentKey, StructuredAssessmentResult } from './lib/assessmentCatalog';
 import {
   getDataStatusDescription,
   resolveTreatmentPhase,
@@ -22,7 +24,17 @@ import { SleepRecordsPage } from './pages/SleepRecordsPage';
 import { TreatmentPlanPage } from './pages/TreatmentPlanPage';
 import { analysisService } from './services/analysisEngine';
 import { generateTaskPlan } from './services/geminiService';
-import { AppState, CBTTask, DBASResult, PSQIResult, SleepLog, UserData } from './types';
+import {
+  AppState,
+  BipolarRiskResult,
+  CBTTask,
+  DBASResult,
+  NumericScaleResult,
+  OSARiskResult,
+  PSQIResult,
+  SleepLog,
+  UserData,
+} from './types';
 
 function readHashTab(): PrimaryTab {
   if (typeof window === 'undefined') {
@@ -58,6 +70,7 @@ export default function App() {
   const [showDbas, setShowDbas] = useState(false);
   const [showPsqi, setShowPsqi] = useState(false);
   const [showIntake, setShowIntake] = useState(false);
+  const [activeStructuredScale, setActiveStructuredScale] = useState<StructuredAssessmentKey | null>(null);
   const [legalOpen, setLegalOpen] = useState(false);
   const [legalSection, setLegalSection] = useState<LegalSection>('permissions');
   const [taskGenerationMessage, setTaskGenerationMessage] = useState<ToastItem | null>(null);
@@ -169,6 +182,61 @@ export default function App() {
       psqiResults: [result, ...current.psqiResults.filter((item) => item.date !== result.date)],
     }));
     pushToast('success', '已保存 PSQI 评估', '首页和治疗计划会结合最新睡眠质量结果更新解释。');
+  };
+
+  const handleSaveNumericScale = (
+    key: 'isiResults' | 'essResults' | 'gad7Results' | 'phq9Results',
+    result: NumericScaleResult,
+    title: string,
+    description: string,
+  ) => {
+    updateUserData((current) => ({
+      ...current,
+      [key]: [result, ...current[key].filter((item) => item.date !== result.date)],
+    }));
+    pushToast('success', title, description);
+  };
+
+  const handleSaveRiskScale = (
+    key: 'osaRiskResults' | 'bipolarRiskResults',
+    result: OSARiskResult | BipolarRiskResult,
+    title: string,
+    description: string,
+  ) => {
+    updateUserData((current) => ({
+      ...current,
+      [key]: [result, ...current[key].filter((item) => item.date !== result.date)],
+    }));
+    pushToast('success', title, description);
+  };
+
+  const handleSaveStructuredScale = (assessmentKey: StructuredAssessmentKey, result: StructuredAssessmentResult) => {
+    if (assessmentKey === 'isi') {
+      handleSaveNumericScale('isiResults', result as NumericScaleResult, '已保存 ISI 评估', '系统会把失眠困扰程度纳入后续阶段判断与计划解释。');
+      return;
+    }
+
+    if (assessmentKey === 'ess') {
+      handleSaveNumericScale('essResults', result as NumericScaleResult, '已保存 ESS 评估', '系统会结合白天困倦负荷，更新风险提示与治疗节奏。');
+      return;
+    }
+
+    if (assessmentKey === 'gad7') {
+      handleSaveNumericScale('gad7Results', result as NumericScaleResult, '已保存 GAD-7 评估', '系统会把焦虑与高唤醒负荷纳入个案概念化与放松训练选择。');
+      return;
+    }
+
+    if (assessmentKey === 'phq9') {
+      handleSaveNumericScale('phq9Results', result as NumericScaleResult, '已保存 PHQ-9 评估', '系统会结合情绪负荷更新执行障碍判断与风险提醒。');
+      return;
+    }
+
+    if (assessmentKey === 'osa') {
+      handleSaveRiskScale('osaRiskResults', result as OSARiskResult, '已保存 OSA 风险筛查', '系统会把呼吸风险筛查结果纳入 CBT-I 适合性判断。');
+      return;
+    }
+
+    handleSaveRiskScale('bipolarRiskResults', result as BipolarRiskResult, '已保存双相/躁期风险筛查', '系统会把躁期风险线索纳入标准 CBT-I 入组筛查。');
   };
 
   const handleGenerateTasks = async () => {
@@ -436,6 +504,7 @@ export default function App() {
             onOpenIntake={() => setShowIntake(true)}
             onOpenDbas={() => setShowDbas(true)}
             onOpenPsqi={() => setShowPsqi(true)}
+            onOpenScale={setActiveStructuredScale}
             onExportData={handleExportData}
             onSwitchToRealMode={handleSwitchToRealMode}
             onReloadDemoData={handleReloadDemo}
@@ -461,6 +530,13 @@ export default function App() {
           initialValue={userData.riskProfile}
           onClose={() => setShowIntake(false)}
           onSave={handleSaveIntake}
+        />
+      )}
+      {activeStructuredScale && (
+        <StructuredScaleForm
+          assessmentKey={activeStructuredScale}
+          onClose={() => setActiveStructuredScale(null)}
+          onSave={(result) => handleSaveStructuredScale(activeStructuredScale, result)}
         />
       )}
       <LegalCenter

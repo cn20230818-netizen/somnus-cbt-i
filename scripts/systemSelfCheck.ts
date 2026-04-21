@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DBASForm } from '../src/components/DBASForm';
 import { PSQIForm } from '../src/components/PSQIForm';
+import { StructuredScaleForm } from '../src/components/StructuredScaleForm';
 import { createDemoUserData, createEmptyUserData, createInitialAppState } from '../src/data/demoData';
 import { getAssessmentSummaries, getEmptyStateMessage, getHomeSummary } from '../src/lib/insights';
 import { HomePage } from '../src/pages/HomePage';
@@ -199,6 +200,24 @@ function seedPsqiLastStepDraft() {
   );
 }
 
+function seedStructuredScaleLastPageDraft() {
+  window.localStorage.setItem(
+    'somnus_gad7_draft_v1',
+    JSON.stringify({
+      page: 2,
+      responses: {
+        nervous: 2,
+        uncontrollable_worry: 2,
+        too_much_worry: 1,
+        trouble_relaxing: 2,
+        restless: 1,
+        irritable: 1,
+        afraid: 2,
+      },
+    }),
+  );
+}
+
 async function main() {
   installMemoryStorage();
 
@@ -291,6 +310,7 @@ async function main() {
       onOpenIntake: () => undefined,
       onOpenDbas: () => undefined,
       onOpenPsqi: () => undefined,
+      onOpenScale: () => undefined,
       onExportData: () => undefined,
       onSwitchToRealMode: () => undefined,
       onReloadDemoData: () => undefined,
@@ -299,7 +319,10 @@ async function main() {
   record(
     '代码级',
     '评估页可渲染建档与量表入口',
-    assessmentMarkup.includes('入组筛查与基础建档') && assessmentMarkup.includes('DBAS 睡眠信念评估'),
+    assessmentMarkup.includes('入组筛查与基础建档') &&
+      assessmentMarkup.includes('DBAS 睡眠信念评估') &&
+      assessmentMarkup.includes('ISI 失眠严重度评估') &&
+      assessmentMarkup.includes('OSA 呼吸风险筛查'),
     '评估页的建档区和量表入口可正常输出。',
   );
 
@@ -375,6 +398,21 @@ async function main() {
     'PSQI 最后一步可显示提交按钮',
     psqiMobileMarkup.includes('最后一步，提交整份评估') && psqiMobileMarkup.includes('提交评估'),
     'PSQI 末步主操作按钮可正常渲染。',
+  );
+
+  seedStructuredScaleLastPageDraft();
+  const structuredScaleMarkup = renderMarkup(
+    createElement(StructuredScaleForm, {
+      assessmentKey: 'gad7',
+      onClose: () => undefined,
+      onSave: () => undefined,
+    }),
+  );
+  record(
+    '功能级 路径F',
+    '扩展量表最后一页可显示提交按钮',
+    structuredScaleMarkup.includes('最后一页，提交整份评估') && structuredScaleMarkup.includes('提交评估'),
+    'GAD-7 等扩展量表末页主操作按钮可正常渲染。',
   );
 
   const unsuitableUser = {

@@ -97,6 +97,7 @@ export interface NumericScaleResult {
   score: number;
   severity?: SeverityLevel;
   interpretation?: string;
+  responses?: Record<string, number>;
 }
 
 export interface OSARiskResult {
@@ -104,6 +105,7 @@ export interface OSARiskResult {
   riskLevel: RiskLevel;
   score?: number;
   note?: string;
+  responses?: Record<string, number>;
 }
 
 export interface BipolarRiskResult {
@@ -111,6 +113,7 @@ export interface BipolarRiskResult {
   riskLevel: RiskLevel;
   score?: number;
   note?: string;
+  responses?: Record<string, number>;
 }
 
 export interface PhysiologicalData {
