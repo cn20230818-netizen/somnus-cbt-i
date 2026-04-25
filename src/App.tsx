@@ -428,15 +428,18 @@ export default function App() {
   };
 
   const handleSaveIntake = (value: UserData['riskProfile']) => {
-    updateUserData((current) => ({
-      ...current,
+    const nextData = syncTreatmentPhase({
+      ...userData,
       riskProfile: {
-        ...current.riskProfile,
+        ...userData.riskProfile,
         ...value,
       },
-    }));
+    });
+
+    setUserData(nextData);
+    saveUserData(nextData);
     setShowIntake(false);
-    pushToast('success', '已保存基础建档', '系统会基于新的病程、风险与准备度信息更新适合性判断和治疗计划。');
+    pushToast('success', '已保存基础建档', '已写入本地记录；未补齐的项目可以随时回到评估与我的继续完善。');
   };
 
   if (!appState.setupComplete || appState.dataMode === 'unset') {

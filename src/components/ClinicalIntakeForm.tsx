@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ChevronLeft, Save, ShieldCheck, UserRound, X } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, Save, ShieldCheck, X } from 'lucide-react';
 import { ReadinessLevel, RiskAndBackgroundProfile, RiskLevel } from '../types';
 
 interface ClinicalIntakeFormProps {
@@ -77,8 +77,8 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
         ? Boolean(draft.treatmentPreference.trim())
         : true;
 
-  const save = () => {
-    onSave({
+  const buildProfile = (): RiskAndBackgroundProfile => {
+    return {
       insomniaDuration: draft.insomniaDuration.trim(),
       onsetTrigger: draft.onsetTrigger.trim(),
       psychiatricHistory: normalizeList(draft.psychiatricHistory),
@@ -94,7 +94,11 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
       priorCBTIExperience: draft.priorCBTIExperience.trim(),
       treatmentPreference: draft.treatmentPreference.trim(),
       readinessForBehaviorChange: draft.readinessForBehaviorChange,
-    });
+    };
+  };
+
+  const save = () => {
+    onSave(buildProfile());
   };
 
   const steps = [
@@ -469,17 +473,27 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
                 >
                   <Save size={16} />
-                  保存基础建档
+                  保存并完成建档
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}
-                  disabled={!canContinue}
-                  className="min-h-12 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
-                >
-                  下一步
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}
+                    disabled={!canContinue}
+                    className="min-h-12 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
+                  >
+                    下一步
+                  </button>
+                  <button
+                    type="button"
+                    onClick={save}
+                    className="col-span-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-sky-200/24 bg-sky-200/10 px-5 py-3 text-sm font-semibold text-sky-50 transition hover:bg-sky-200/16 sm:col-span-1"
+                  >
+                    <Save size={16} />
+                    保存当前进度
+                  </button>
+                </>
               )}
             </div>
           </div>

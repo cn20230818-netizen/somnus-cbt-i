@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { ClinicalIntakeForm } from '../src/components/ClinicalIntakeForm';
 import { DBASForm } from '../src/components/DBASForm';
 import { PSQIForm } from '../src/components/PSQIForm';
 import { StructuredScaleForm } from '../src/components/StructuredScaleForm';
@@ -227,6 +228,32 @@ async function main() {
   const realUser = createEmptyUserData(new Date('2026-04-21'));
   const emptyMessage = getEmptyStateMessage(realUser);
   record('功能级 路径A', '首次进入空状态引导', emptyMessage.title.includes('基础建档'), `空状态标题为“${emptyMessage.title}”。`);
+
+  const intakeMarkup = renderMarkup(
+    createElement(ClinicalIntakeForm, {
+      initialValue: realUser.riskProfile,
+      onClose: () => undefined,
+      onSave: () => undefined,
+    }),
+  );
+  record(
+    '功能级 路径A',
+    '基础建档首步支持保存当前进度',
+    intakeMarkup.includes('保存当前进度') && intakeMarkup.includes('下一步'),
+    '基础建档不再需要走到最后一步才能保存。',
+  );
+
+  const intakeSavedUser = withCompletedIntake(realUser);
+  saveUserData(intakeSavedUser);
+  const loadedIntakeUser = loadUserData({ setupComplete: true, dataMode: 'real' });
+  record(
+    '代码级',
+    '基础建档可持久化到本地存储',
+    loadedIntakeUser.riskProfile.insomniaDuration === intakeSavedUser.riskProfile.insomniaDuration &&
+      loadedIntakeUser.riskProfile.treatmentPreference === intakeSavedUser.riskProfile.treatmentPreference,
+    `读取到病程“${loadedIntakeUser.riskProfile.insomniaDuration || '空'}”。`,
+  );
+  clearStoredUserData();
 
   const userWithIntake = withCompletedIntake(realUser);
   const userWithFirstLog: UserData = {
