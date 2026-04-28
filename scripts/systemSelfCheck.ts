@@ -248,6 +248,12 @@ async function main() {
     intakeMarkup.includes('如果暂时不确定，可以先进入下一步') && !intakeMarkup.includes('disabled=""'),
     '基础建档缺少病程时只提示补充，不再硬性禁用下一步。',
   );
+  record(
+    '功能级 路径A',
+    '基础建档首步提供内容区后续操作',
+    intakeMarkup.includes('本步操作') && intakeMarkup.includes('继续到治疗偏好与执行准备度'),
+    '基础建档第一步内容区已提供继续到后续步骤的主操作。',
+  );
 
   const intakeSavedUser = withCompletedIntake(realUser);
   saveUserData(intakeSavedUser);

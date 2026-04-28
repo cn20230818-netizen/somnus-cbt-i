@@ -101,6 +101,10 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
     onSave(buildProfile());
   };
 
+  const goNext = () => {
+    setStep((current) => Math.min(steps.length - 1, current + 1));
+  };
+
   const steps = [
     {
       eyebrow: 'Step 1',
@@ -396,6 +400,43 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
                   </div>
                 </div>
               )}
+
+              <div className="rounded-[28px] border border-sky-200/14 bg-sky-200/8 p-5">
+                <p className="text-sm font-semibold text-sky-50">本步操作</p>
+                <p className="mt-2 text-sm leading-7 text-white/62">
+                  {step === steps.length - 1
+                    ? '确认风险与谨慎处理项后，可以保存建档并返回评估页。'
+                    : '本步信息可以先留空，继续到后面的建档内容；系统会把缺失项标记为待补充。'}
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {step === steps.length - 1 ? (
+                    <button
+                      type="button"
+                      onClick={save}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
+                    >
+                      <Save size={16} />
+                      保存并完成建档
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      className="inline-flex min-h-12 items-center justify-center rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
+                    >
+                      继续到{steps[step + 1].title}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={save}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-sky-200/24 bg-sky-200/10 px-5 py-3 text-sm font-semibold text-sky-50 transition hover:bg-sky-200/16"
+                  >
+                    <Save size={16} />
+                    保存当前进度
+                  </button>
+                </div>
+              </div>
             </div>
 
             <aside className="space-y-4">
@@ -484,7 +525,7 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
                 <>
                   <button
                     type="button"
-                    onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}
+                    onClick={goNext}
                     className="min-h-12 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
                   >
                     下一步
