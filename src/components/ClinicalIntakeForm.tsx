@@ -70,12 +70,12 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
     return Math.round((score / 4) * 100);
   }, [draft]);
 
-  const canContinue =
-    step === 0
-      ? Boolean(draft.insomniaDuration.trim())
-      : step === 1
-        ? Boolean(draft.treatmentPreference.trim())
-        : true;
+  const stepNotice =
+    step === 0 && !draft.insomniaDuration.trim()
+      ? '失眠病程有助于判断是否符合慢性失眠模式；如果暂时不确定，可以先进入下一步，稍后再补充。'
+      : step === 1 && !draft.treatmentPreference.trim()
+        ? '治疗偏好会影响睡眠限制、睡眠压缩等方案节奏；如果还没有想法，可以先进入风险筛查。'
+        : null;
 
   const buildProfile = (): RiskAndBackgroundProfile => {
     return {
@@ -163,6 +163,11 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
                 <p className="text-sm font-semibold text-sky-100">{steps[step].eyebrow}</p>
                 <h3 className="mt-2 text-2xl font-semibold text-white">{steps[step].title}</h3>
                 <p className="mt-3 text-sm leading-7 text-white/68">{steps[step].description}</p>
+                {stepNotice && (
+                  <p className="mt-4 rounded-[18px] border border-amber-200/16 bg-amber-200/10 px-4 py-3 text-sm leading-7 text-amber-50/82">
+                    {stepNotice}
+                  </p>
+                )}
               </div>
 
               {step === 0 && (
@@ -480,8 +485,7 @@ export function ClinicalIntakeForm({ initialValue, onClose, onSave }: ClinicalIn
                   <button
                     type="button"
                     onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}
-                    disabled={!canContinue}
-                    className="min-h-12 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-40"
+                    className="min-h-12 rounded-full bg-sky-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200"
                   >
                     下一步
                   </button>

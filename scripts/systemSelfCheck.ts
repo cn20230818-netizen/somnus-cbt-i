@@ -242,6 +242,12 @@ async function main() {
     intakeMarkup.includes('保存当前进度') && intakeMarkup.includes('下一步'),
     '基础建档不再需要走到最后一步才能保存。',
   );
+  record(
+    '功能级 路径A',
+    '基础建档空值时仍可进入下一步',
+    intakeMarkup.includes('如果暂时不确定，可以先进入下一步') && !intakeMarkup.includes('disabled=""'),
+    '基础建档缺少病程时只提示补充，不再硬性禁用下一步。',
+  );
 
   const intakeSavedUser = withCompletedIntake(realUser);
   saveUserData(intakeSavedUser);
